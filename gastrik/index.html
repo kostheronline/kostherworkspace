@@ -1,0 +1,3791 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Favicon desde brand/favicon.png -->
+  <link rel="icon" type="image/png" href="brand/favicon.png" />
+  <link rel="apple-touch-icon" href="brand/favicon.png" />
+  <!-- El title solo debe ser gastrik en minúscula -->
+  <title>gastrik</title>
+  <meta name="description" content="gastrik: planifica tu menú semanal, descubre recetas caseras, cocina paso a paso con temporizador Pomodoro y ruido blanco para concentrarte." />
+  <meta name="theme-color" content="#C83E2B" />
+
+  <!-- ============================================================
+       CDNs OBLIGATORIOS (todo en un solo archivo)
+       1) Tailwind CSS vía CDN con configuración de paleta oficial
+       2) Google Fonts: Montserrat (única familia tipográfica)
+       3) Lucide Icons (iconografía SVG, prohibido usar emojis)
+       4) LocalForage (persistencia en IndexedDB)
+  ============================================================ -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Configuración de Tailwind con la paleta oficial de gastrik
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Color Primario: Rojo Gastrik (#C83E2B)
+            albahaca: {
+              DEFAULT: '#C83E2B',
+              50: '#fdf3f2',
+              100: '#fae4e1',
+              200: '#f4ccc6',
+              300: '#eba69b',
+              400: '#df7867',
+              500: '#d8543e',
+              600: '#C83E2B',
+              700: '#a8321f',
+              800: '#8b2a1a',
+              900: '#722518',
+            },
+            // Color Acento: Dorado (#E59A1C)
+            fogon: {
+              DEFAULT: '#E59A1C',
+              50: '#fffaf0',
+              100: '#fef3e0',
+              200: '#fde5bd',
+              300: '#fbd089',
+              400: '#f8b84c',
+              500: '#E59A1C',
+              600: '#c28012',
+              700: '#9e6810',
+              800: '#7a5210',
+              900: '#5e4008',
+            },
+            // Color Neutral: Crema (#FBF9F5)
+            lino: {
+              DEFAULT: '#FBF9F5',
+              card: '#FFFFFF',
+              border: '#E4E4E7',
+            },
+            // Color Oscuro: Carbón Oscuro (#1C1917)
+            carbon: {
+              DEFAULT: '#1C1917',
+              50: '#fafaf9',
+              100: '#f5f5f4',
+              200: '#e7e5e4',
+              300: '#d6d3d1',
+              400: '#a8a29e',
+              500: '#78716c',
+              600: '#57534e',
+              700: '#44403c',
+              800: '#292524',
+              900: '#1C1917',
+            },
+          },
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Montserrat: única fuente tipográfica de toda la interfaz -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons: iconografía vectorial SVG (cero emojis en toda la app) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- LocalForage: persistencia asíncrona en IndexedDB -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+
+  <!-- ============================================================
+       ESTILOS CSS PERSONALIZADOS
+       Animaciones suaves, proporciones exactas y detalles visuales
+  ============================================================ -->
+  <style>
+    /* Montserrat como fuente principal global */
+    * { font-family: 'Montserrat', sans-serif; }
+
+    body {
+      background-color: #FBF9F5;
+      color: #1C1917;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Transición suave entre vistas */
+    .view {
+      animation: fadeInUp 0.4s ease-out;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Animación de tarjetas al hover */
+    .card-hover {
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px -8px rgba(28, 25, 23, 0.12);
+      border-color: #E59A1C;
+    }
+
+    /* Scrollbar elegante */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #FBF9F5; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+    /* Reloj circular Pomodoro */
+    .timer-ring {
+      transition: stroke-dashoffset 1s linear;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    /* Animación de pulso para el botón del panel flotante */
+    .pulse-dot {
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.15); }
+    }
+
+    /* Animación de ondas para el reproductor de ruido */
+    .wave-bar {
+      animation: waveAnim 1.2s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.6s; }
+    @keyframes waveAnim {
+      0%, 100% { height: 6px; }
+      50% { height: 24px; }
+    }
+
+    /* Checkbox personalizado */
+    .custom-checkbox {
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2px solid #d4d4d8;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .custom-checkbox:checked {
+      background-color: #C83E2B;
+      border-color: #C83E2B;
+    }
+    .custom-checkbox:checked::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 6px;
+      height: 11px;
+      border: solid white;
+      border-width: 0 2.5px 2.5px 0;
+      transform: rotate(45deg);
+    }
+
+    /* Línea tachada para items completados */
+    .completed-text {
+      text-decoration: line-through;
+      color: #a1a1aa;
+    }
+
+    /* Ocultar scrollbar en contenedores horizontales */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Animación de entrada para modales */
+    .modal-enter {
+      animation: modalEnter 0.3s ease-out;
+    }
+    @keyframes modalEnter {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Etiqueta publicitaria discreta */
+    .ad-label {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 10px;
+      font-weight: 600;
+      color: #a1a1aa;
+    }
+
+    /* Entrada de rango (slider) personalizada */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 6px;
+      background: #e4e4e7;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #E59A1C;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #E59A1C;
+      cursor: pointer;
+      border: 2px solid #fff;
+    }
+
+    /* Ocultar elementos cuando no hay vista activa */
+    .hidden-view { display: none !important; }
+
+    /* Corazón lleno para favoritos (Lucide usa stroke por defecto, aquí forzamos fill) */
+    .heart-filled path {
+      fill: currentColor !important;
+    }
+
+    /* Espacios publicitarios con imagen real — control estricto de visibilidad */
+    /* El img siempre se muestra; el fallback solo cuando la imagen falla */
+    .ad-img {
+      display: block !important;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .ad-fallback {
+      display: none !important;
+    }
+    .ad-fallback-icon {
+      display: none !important;
+    }
+    /* Cuando la imagen falla, se añade la clase ad-container-no-img al contenedor */
+    .ad-container-no-img .ad-img {
+      display: none !important;
+    }
+    .ad-container-no-img .ad-fallback {
+      display: flex !important;
+    }
+    .ad-container-no-img .ad-fallback-icon {
+      display: block !important;
+    }
+
+    /* Selector de porciones en modo cocina */
+    .servings-btn {
+      transition: all 0.2s ease;
+    }
+    .servings-btn:active {
+      transform: scale(0.92);
+    }
+  </style>
+</head>
+
+<body class="bg-lino text-carbon min-h-screen">
+  <!-- ============================================================
+       HEADER / NAVEGACIÓN PRINCIPAL
+       Navegación por pestañas sin recarga de página
+  ============================================================ -->
+  <header class="sticky top-0 z-40 bg-white border-b border-lino-border shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo gastrik (brand/logo-claro.png para fondo claro) -->
+        <div class="flex items-center gap-2">
+          <img src="brand/logo-claro.png" alt="gastrik" class="w-10 h-10 rounded-xl object-cover"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div class="hidden w-10 h-10 rounded-xl bg-albahaca items-center justify-center" style="display:none;">
+            <i data-lucide="chef-hat" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-extrabold text-carbon tracking-tight lowercase">gastrik</h1>
+            <p class="text-[10px] text-carbon-500 font-medium -mt-1 hidden sm:block">Planificador de menú semanal</p>
+          </div>
+        </div>
+
+        <!-- Navegación por pestañas (desktop) -->
+        <nav class="hidden md:flex items-center gap-1">
+          <button data-nav="menu" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-carbon-600 hover:bg-lino hover:text-albahaca transition-colors">
+            <i data-lucide="calendar-days" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Menú Semanal
+          </button>
+          <button data-nav="explore" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-carbon-600 hover:bg-lino hover:text-albahaca transition-colors">
+            <i data-lucide="book-open" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Explorar Recetas
+          </button>
+          <button data-nav="shopping" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-carbon-600 hover:bg-lino hover:text-albahaca transition-colors">
+            <i data-lucide="shopping-basket" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Lista de Compras
+          </button>
+        </nav>
+
+        <!-- Botones: Compartir app, Agregar al inicio, Panel flotante -->
+        <div class="flex items-center gap-1.5">
+          <!-- Botón Compartir app -->
+          <button id="btn-share-app" class="w-9 h-9 rounded-xl bg-white border border-lino-border text-carbon flex items-center justify-center hover:border-albahaca hover:text-albahaca transition-colors" title="Compartir app">
+            <i data-lucide="share-2" class="w-4 h-4"></i>
+          </button>
+          <!-- Botón Agregar al inicio (PWA install) — siempre visible -->
+          <button id="btn-install-app" class="w-9 h-9 rounded-xl bg-white border border-lino-border text-carbon flex items-center justify-center hover:border-albahaca hover:text-albahaca transition-colors" title="Agregar al inicio">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+          <!-- Botón del panel flotante (Pomodoro + Ruido) -->
+          <button id="floating-toggle" class="relative w-10 h-10 rounded-xl bg-carbon text-white flex items-center justify-center hover:bg-carbon-700 transition-colors">
+            <i data-lucide="timer" class="w-5 h-5"></i>
+            <span id="floating-dot" class="absolute -top-1 -right-1 w-3 h-3 bg-fogon rounded-full pulse-dot hidden"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navegación móvil (iconos inferiores) -->
+      <nav class="md:hidden flex items-center justify-around border-t border-lino-border -mx-4 px-4 py-2">
+        <button data-nav="menu" class="nav-btn-m flex flex-col items-center gap-0.5 text-xs font-semibold text-carbon-600">
+          <i data-lucide="calendar-days" class="w-5 h-5"></i>
+          <span>Menú</span>
+        </button>
+        <button data-nav="explore" class="nav-btn-m flex flex-col items-center gap-0.5 text-xs font-semibold text-carbon-600">
+          <i data-lucide="book-open" class="w-5 h-5"></i>
+          <span>Recetas</span>
+        </button>
+        <button data-nav="shopping" class="nav-btn-m flex flex-col items-center gap-0.5 text-xs font-semibold text-carbon-600">
+          <i data-lucide="shopping-basket" class="w-5 h-5"></i>
+          <span>Compras</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       CONTENIDO PRINCIPAL — Vistas intercambiables
+  ============================================================ -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-6">
+
+    <!-- ========================================================
+         VISTA 1: MENÚ SEMANAL
+    ======================================================== -->
+    <section id="view-menu" class="view">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-carbon">Menú Semanal</h2>
+          <p class="text-carbon-500 text-sm mt-1">Planifica tus comidas de Lunes a Domingo automáticamente.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-generate-week" class="px-5 py-2.5 rounded-xl bg-albahaca text-white font-semibold text-sm hover:bg-albahaca-800 transition-colors flex items-center gap-2 shadow-sm">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            Generar nueva semana
+          </button>
+          <button id="btn-go-shopping" class="px-5 py-2.5 rounded-xl bg-white border border-lino-border text-carbon font-semibold text-sm hover:border-fogon hover:text-fogon transition-colors flex items-center gap-2">
+            <i data-lucide="shopping-basket" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Ver Lista de Compras</span>
+            <span class="sm:hidden">Compras</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Selector de tipos de comida: Desayuno, Almuerzo, Cena + Postre -->
+      <div class="bg-white border border-lino-border rounded-2xl p-4 mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <i data-lucide="settings-2" class="w-4 h-4 text-carbon-500"></i>
+          <h3 class="text-sm font-bold text-carbon">¿Qué comidas quieres planificar?</h3>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <label class="meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-lino-border cursor-pointer hover:border-albahaca transition" data-meal="desayuno">
+            <input type="checkbox" class="meal-type-checkbox hidden" data-meal="desayuno" />
+            <span class="meal-type-dot w-4 h-4 rounded-full border-2 border-lino-border flex items-center justify-center transition"></span>
+            <i data-lucide="sunrise" class="w-4 h-4 text-fogon"></i>
+            <span class="text-sm font-semibold">Desayuno</span>
+          </label>
+          <label class="meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-albahaca bg-albahaca-50 cursor-pointer transition" data-meal="almuerzo">
+            <input type="checkbox" class="meal-type-checkbox hidden" data-meal="almuerzo" checked />
+            <span class="meal-type-dot w-4 h-4 rounded-full border-2 border-albahaca bg-albahaca flex items-center justify-center transition">
+              <i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>
+            </span>
+            <i data-lucide="sun" class="w-4 h-4 text-albahaca"></i>
+            <span class="text-sm font-semibold text-albahaca">Almuerzo</span>
+          </label>
+          <label class="meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-albahaca bg-albahaca-50 cursor-pointer transition" data-meal="cena">
+            <input type="checkbox" class="meal-type-checkbox hidden" data-meal="cena" checked />
+            <span class="meal-type-dot w-4 h-4 rounded-full border-2 border-albahaca bg-albahaca flex items-center justify-center transition">
+              <i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>
+            </span>
+            <i data-lucide="moon" class="w-4 h-4 text-albahaca"></i>
+            <span class="text-sm font-semibold text-albahaca">Cena</span>
+          </label>
+          <label class="meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-lino-border cursor-pointer hover:border-fogon transition" data-meal="postre">
+            <input type="checkbox" class="meal-type-checkbox hidden" data-meal="postre" />
+            <span class="meal-type-dot w-4 h-4 rounded-full border-2 border-lino-border flex items-center justify-center transition"></span>
+            <i data-lucide="ice-cream-cone" class="w-4 h-4 text-fogon"></i>
+            <span class="text-sm font-semibold">Postre</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Layout: contenido principal + sidebar publicitario 3:4 (desktop) -->
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Contenido principal -->
+        <div class="flex-1 min-w-0">
+          <!-- Grid de días: Lunes a Domingo (el ad inline se inserta aleatoriamente) -->
+          <div id="weekly-menu-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Se renderiza dinámicamente con un ad en posicion aleatoria -->
+          </div>
+
+          <!-- Resumen semanal -->
+          <div id="week-summary" class="mt-6 hidden bg-white border border-lino-border rounded-2xl p-5">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <p class="text-2xl font-extrabold text-albahaca" id="summary-recipes">0</p>
+                <p class="text-xs text-carbon-500 font-medium mt-1">Recetas planificadas</p>
+              </div>
+              <div>
+                <p class="text-2xl font-extrabold text-fogon" id="summary-time">0</p>
+                <p class="text-xs text-carbon-500 font-medium mt-1">Minutos totales</p>
+              </div>
+              <div>
+                <p class="text-2xl font-extrabold text-carbon" id="summary-calories">0</p>
+                <p class="text-xs text-carbon-500 font-medium mt-1">Calorías promedio</p>
+              </div>
+              <div>
+                <p class="text-2xl font-extrabold text-carbon" id="summary-ingredients">0</p>
+                <p class="text-xs text-carbon-500 font-medium mt-1">Ingredientes únicos</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar publicitario vertical 3:4 (solo desktop >=768px) -->
+        <aside class="hidden md:block w-56 lg:w-64 flex-shrink-0">
+          <div class="sticky top-24">
+            <div id="ad-menu-sidebar"><!-- Ad renderizado por JS --></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         VISTA 2: EXPLORAR RECETAS
+    ======================================================== -->
+    <section id="view-explore" class="view hidden-view">
+      <div class="mb-6">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-carbon">Explorar Recetas</h2>
+        <p class="text-carbon-500 text-sm mt-1">Descubre recetas caseras, marca tus favoritas y excluye las que no te gustan.</p>
+      </div>
+
+      <!-- Barra de búsqueda + filtros -->
+      <div class="bg-white border border-lino-border rounded-2xl p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-3">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-carbon-400"></i>
+            <input id="recipe-search" type="text" placeholder="Buscar por nombre o ingrediente..." class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-lino border border-lino-border text-sm focus:outline-none focus:border-albahaca focus:ring-2 focus:ring-albahaca/20 transition" />
+          </div>
+          <select id="filter-category" class="px-4 py-2.5 rounded-xl bg-lino border border-lino-border text-sm font-medium focus:outline-none focus:border-albahaca">
+            <option value="">Todas las categorías</option>
+            <option value="Almuerzo">Almuerzo</option>
+            <option value="Cena">Cena</option>
+            <option value="Desayuno">Desayuno</option>
+            <option value="Ligero">Ligero</option>
+            <option value="Criollo">Criollo</option>
+            <option value="Rápido">Rápido</option>
+            <option value="Postre">Postre</option>
+          </select>
+          <select id="filter-tag" class="px-4 py-2.5 rounded-xl bg-lino border border-lino-border text-sm font-medium focus:outline-none focus:border-albahaca">
+            <option value="">Todas las etiquetas</option>
+          </select>
+        </div>
+        <!-- Toggles de favoritos / excluidos -->
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="toggle-favorites" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-lino-border hover:border-fogon hover:text-fogon transition flex items-center gap-1.5">
+            <i data-lucide="heart" class="w-3.5 h-3.5"></i> Solo favoritas
+          </button>
+          <button id="toggle-excluded" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-lino-border hover:border-fogon hover:text-fogon transition flex items-center gap-1.5">
+            <i data-lucide="ban" class="w-3.5 h-3.5"></i> Ver excluidas
+          </button>
+          <button id="clear-filters" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-lino-border hover:border-carbon transition flex items-center gap-1.5">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i> Limpiar filtros
+          </button>
+        </div>
+      </div>
+
+      <!-- Layout: grid de recetas (con ads inline cada 4) + sidebar publicitario desktop -->
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Grid de recetas — los ads inline 16:9 se insertan cada 4 recetas -->
+        <div class="flex-1 min-w-0">
+          <div id="recipe-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <!-- Se renderiza dinámicamente con ads inline cada 4 recetas -->
+          </div>
+        </div>
+
+        <!-- Sidebar publicitario vertical 3:4 (solo desktop >=768px) -->
+        <aside class="hidden md:block w-56 lg:w-64 flex-shrink-0">
+          <div class="sticky top-24">
+            <div id="ad-explore-sidebar"><!-- Ad renderizado por JS --></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         VISTA 3: LISTA DE COMPRAS
+    ======================================================== -->
+    <section id="view-shopping" class="view hidden-view">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-carbon">Lista de Compras</h2>
+          <p class="text-carbon-500 text-sm mt-1">Ingredientes agrupados de tu menú semanal. Marca lo que ya tienes.</p>
+        </div>
+        <button id="btn-clear-shopping" class="px-4 py-2 rounded-xl bg-white border border-lino-border text-carbon font-semibold text-sm hover:border-fogon hover:text-fogon transition flex items-center gap-2">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          Reiniciar lista
+        </button>
+      </div>
+
+      <!-- Barra de progreso -->
+      <div class="bg-white border border-lino-border rounded-2xl p-4 mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-semibold text-carbon">Progreso de compras</span>
+          <span id="shopping-progress-text" class="text-sm font-bold text-albahaca">0 / 0</span>
+        </div>
+        <div class="w-full h-2.5 rounded-full bg-lino-border overflow-hidden">
+          <div id="shopping-progress-bar" class="h-full bg-albahaca rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Layout: lista de compras + sidebar publicitario 3:4 (desktop) -->
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Lista agrupada por categorías — ads inline 16:9 entre letras -->
+        <div class="flex-1 min-w-0">
+          <div id="shopping-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Se renderiza dinámicamente con ads inline entre letras -->
+          </div>
+        </div>
+
+        <!-- Sidebar publicitario vertical 3:4 (solo desktop >=768px) -->
+        <aside class="hidden md:block w-56 lg:w-64 flex-shrink-0">
+          <div class="sticky top-24">
+            <div id="ad-shopping-sidebar"><!-- Ad renderizado por JS --></div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Estado vacío -->
+      <div id="shopping-empty" class="hidden text-center py-16">
+        <div class="w-16 h-16 rounded-full bg-lino mx-auto flex items-center justify-center mb-4">
+          <i data-lucide="shopping-cart" class="w-8 h-8 text-carbon-400"></i>
+        </div>
+        <h3 class="text-lg font-bold text-carbon">Tu lista está vacía</h3>
+        <p class="text-carbon-500 text-sm mt-1">Genera un menú semanal para crear tu lista de compras automáticamente.</p>
+        <button onclick="App.navigate('menu')" class="mt-4 px-5 py-2.5 rounded-xl bg-albahaca text-white font-semibold text-sm hover:bg-albahaca-800 transition">
+          Ir a generar menú
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         VISTA 4: MODO COCINA
+         Vista enfocada, letra grande, checklist de pasos
+    ======================================================== -->
+    <section id="view-cooking" class="view hidden-view">
+      <div class="max-w-3xl mx-auto">
+        <!-- Botón salir -->
+        <button id="btn-exit-cooking" class="mb-4 px-4 py-2 rounded-xl bg-white border border-lino-border text-carbon font-semibold text-sm hover:border-carbon transition flex items-center gap-2">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          Salir del modo cocina
+        </button>
+
+        <!-- Cabecera de la receta -->
+        <div class="bg-white border border-lino-border rounded-2xl p-6 mb-6">
+          <div class="flex items-center gap-2 mb-2">
+            <span id="cooking-category" class="px-2.5 py-1 rounded-md bg-albahaca-50 text-albahaca text-xs font-bold"></span>
+            <span id="cooking-time" class="text-xs text-carbon-500 font-medium flex items-center gap-1">
+              <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+              <span></span>
+            </span>
+            <span id="cooking-calories" class="text-xs text-carbon-500 font-medium flex items-center gap-1">
+              <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+              <span></span>
+            </span>
+          </div>
+          <h2 id="cooking-title" class="text-2xl sm:text-3xl font-extrabold text-carbon"></h2>
+          
+          <!-- Editor de porciones — ingredientes se ajustan automáticamente -->
+          <div class="flex items-center gap-3 mt-4 bg-lino rounded-xl p-3">
+            <i data-lucide="users" class="w-5 h-5 text-carbon-500 flex-shrink-0"></i>
+            <span class="text-sm font-semibold text-carbon">Porciones:</span>
+            <button id="servings-decrease" class="servings-btn w-8 h-8 rounded-lg bg-white border border-lino-border text-carbon font-extrabold hover:border-albahaca hover:text-albahaca transition flex items-center justify-center">
+              <i data-lucide="minus" class="w-4 h-4"></i>
+            </button>
+            <span id="cooking-servings-display" class="text-lg font-extrabold text-albahaca min-w-[2rem] text-center tabular-nums">4</span>
+            <button id="servings-increase" class="servings-btn w-8 h-8 rounded-lg bg-white border border-lino-border text-carbon font-extrabold hover:border-albahaca hover:text-albahaca transition flex items-center justify-center">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+            <span class="text-xs text-carbon-400 ml-auto" id="cooking-servings-original">Original: 4</span>
+          </div>
+        </div>
+
+        <!-- Checklist de ingredientes -->
+        <div class="bg-white border border-lino-border rounded-2xl p-6 mb-6">
+          <h3 class="text-lg font-bold text-carbon mb-4 flex items-center gap-2">
+            <i data-lucide="list-checks" class="w-5 h-5 text-albahaca"></i>
+            Ingredientes
+          </h3>
+          <div id="cooking-ingredients" class="space-y-3">
+            <!-- Se renderiza dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Espacio publicitario entre ingredientes y pasos (16:9, rotación) -->
+        <div class="my-8" id="ad-cooking-middle"><!-- Ad renderizado por JS --></div>
+
+        <!-- Pasos de preparación -->
+        <div class="bg-white border border-lino-border rounded-2xl p-6 mb-6">
+          <h3 class="text-lg font-bold text-carbon mb-4 flex items-center gap-2">
+            <i data-lucide="footprints" class="w-5 h-5 text-fogon"></i>
+            Pasos de preparación
+          </h3>
+          <div id="cooking-steps" class="space-y-4">
+            <!-- Se renderiza dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Recomendación de Kuzz o Musomía (tarjeta inline, no banner) -->
+        <!-- Separada del ad-cooking-middle por la sección de pasos -->
+        <div class="mb-6" id="kuzz-recommendation"><!-- Renderizado por JS --></div>
+
+        <!-- Botón completar -->
+        <button id="btn-complete-cooking" class="w-full py-3.5 rounded-xl bg-albahaca text-white font-bold text-base hover:bg-albahaca-800 transition flex items-center justify-center gap-2">
+          <i data-lucide="check-circle" class="w-5 h-5"></i>
+          Marcar receta como completada
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       PANEL FLOTANTE — POMODORO + RUIDO BLANCO
+       Panel lateral derecho, colapsable
+  ============================================================ -->
+  <aside id="floating-panel" class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white border-l border-lino-border shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-out overflow-y-auto">
+    <div class="p-5">
+      <!-- Cabecera del panel -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-lg bg-carbon flex items-center justify-center">
+            <i data-lucide="timer" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-carbon">Cocina con foco</h3>
+            <p class="text-[10px] text-carbon-500">Pomodoro + Sonido ambiente</p>
+          </div>
+        </div>
+        <button id="floating-close" class="w-8 h-8 rounded-lg hover:bg-lino flex items-center justify-center transition">
+          <i data-lucide="x" class="w-5 h-5 text-carbon-600"></i>
+        </button>
+      </div>
+
+      <!-- ========================================================
+           TEMPORIZADOR POMODORO ESTÁNDAR
+      ======================================================== -->
+      <div class="bg-lino rounded-2xl p-5 mb-5 border border-lino-border">
+        <h4 class="text-sm font-bold text-carbon mb-3 flex items-center gap-2">
+          <i data-lucide="clock-3" class="w-4 h-4 text-albahaca"></i>
+          Temporizador Pomodoro
+        </h4>
+
+        <!-- Selector de modo estándar -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <button data-mode="work" class="pomodoro-mode px-2 py-2 rounded-lg text-xs font-bold bg-albahaca text-white">
+            Cocina<br><span class="text-[10px] font-semibold opacity-80">25:00</span>
+          </button>
+          <button data-mode="short" class="pomodoro-mode px-2 py-2 rounded-lg text-xs font-bold bg-white border border-lino-border text-carbon hover:border-albahaca transition">
+            Descanso<br><span class="text-[10px] font-semibold opacity-60">05:00</span>
+          </button>
+          <button data-mode="long" class="pomodoro-mode px-2 py-2 rounded-lg text-xs font-bold bg-white border border-lino-border text-carbon hover:border-albahaca transition">
+            Pausa larga<br><span class="text-[10px] font-semibold opacity-60">15:00</span>
+          </button>
+        </div>
+
+        <!-- Reloj circular animado SVG -->
+        <div class="relative w-48 h-48 mx-auto mb-4">
+          <svg class="w-full h-full" viewBox="0 0 200 200">
+            <!-- Círculo de fondo -->
+            <circle cx="100" cy="100" r="88" fill="none" stroke="#e4e4e7" stroke-width="10" />
+            <!-- Círculo de progreso (animado con stroke-dashoffset) -->
+            <circle id="timer-progress" class="timer-ring" cx="100" cy="100" r="88" fill="none"
+              stroke="#EA580C" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="552.92" stroke-dashoffset="0" />
+          </svg>
+          <!-- Tiempo restante en el centro -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="timer-display" class="text-3xl font-extrabold text-carbon tabular-nums">25:00</span>
+            <span id="timer-label" class="text-[10px] font-semibold text-carbon-500 mt-1">MODO COCINA</span>
+          </div>
+        </div>
+
+        <!-- Controles del temporizador -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button id="timer-start" class="py-2.5 rounded-xl bg-albahaca text-white font-bold text-sm hover:bg-albahaca-800 transition flex items-center justify-center gap-1.5">
+            <i data-lucide="play" class="w-4 h-4"></i>
+            <span>Iniciar</span>
+          </button>
+          <button id="timer-pause" class="py-2.5 rounded-xl bg-white border border-lino-border text-carbon font-bold text-sm hover:border-carbon transition flex items-center justify-center gap-1.5">
+            <i data-lucide="pause" class="w-4 h-4"></i>
+            <span>Pausar</span>
+          </button>
+          <button id="timer-reset" class="py-2.5 rounded-xl bg-white border border-lino-border text-carbon font-bold text-sm hover:border-carbon transition flex items-center justify-center gap-1.5">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>Reiniciar</span>
+          </button>
+        </div>
+
+        <!-- Ajuste manual de minutos -->
+        <div class="flex items-center gap-2 mb-3">
+          <label class="text-xs font-semibold text-carbon-500 whitespace-nowrap">Minutos:</label>
+          <input id="timer-custom-minutes" type="number" min="1" max="90" value="25" class="w-16 px-2 py-1.5 rounded-lg bg-white border border-lino-border text-sm font-bold text-center focus:outline-none focus:border-albahaca" />
+          <button id="timer-apply-custom" class="px-3 py-1.5 rounded-lg bg-carbon text-white text-xs font-bold hover:bg-carbon-700 transition">Aplicar</button>
+        </div>
+
+        <!-- Contador de ciclos completados -->
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-carbon-500 font-medium flex items-center gap-1.5">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-albahaca"></i>
+            Ciclos completados
+          </span>
+          <span id="timer-cycles" class="font-extrabold text-albahaca text-base">0</span>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           GENERADOR DE RUIDO BLANCO / SONIDO AMBIENTE
+           100% Web Audio API — sin archivos externos
+      ======================================================== -->
+      <div class="bg-lino rounded-2xl p-5 border border-lino-border">
+        <h4 class="text-sm font-bold text-carbon mb-3 flex items-center gap-2">
+          <i data-lucide="audio-waveform" class="w-4 h-4 text-fogon"></i>
+          Sonido Ambiente
+        </h4>
+
+        <!-- Selector de tipo de ruido -->
+        <div class="grid grid-cols-1 gap-2 mb-4">
+          <button data-noise="white" class="noise-type px-3 py-2.5 rounded-xl bg-white border border-lino-border text-left hover:border-fogon transition flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-fogon/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="brain" class="w-4 h-4 text-fogon"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-carbon">Ruido Blanco</p>
+              <p class="text-[10px] text-carbon-500">Enfoque y concentración</p>
+            </div>
+            <i data-lucide="circle" class="w-4 h-4 text-carbon-300 noise-indicator"></i>
+          </button>
+          <button data-noise="pink" class="noise-type px-3 py-2.5 rounded-xl bg-white border border-lino-border text-left hover:border-fogon transition flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-fogon/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="cloud-rain" class="w-4 h-4 text-fogon"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-carbon">Ruido Rosa</p>
+              <p class="text-[10px] text-carbon-500">Lluvia suave relajante</p>
+            </div>
+            <i data-lucide="circle" class="w-4 h-4 text-carbon-300 noise-indicator"></i>
+          </button>
+          <button data-noise="brown" class="noise-type px-3 py-2.5 rounded-xl bg-white border border-lino-border text-left hover:border-fogon transition flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-fogon/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="waves" class="w-4 h-4 text-fogon"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-carbon">Ruido Marrón</p>
+              <p class="text-[10px] text-carbon-500">Murmullo profundo de cocina</p>
+            </div>
+            <i data-lucide="circle" class="w-4 h-4 text-carbon-300 noise-indicator"></i>
+          </button>
+        </div>
+
+        <!-- Visualizador de ondas (animación CSS cuando suena) -->
+        <div id="noise-visualizer" class="flex items-end justify-center gap-1 h-8 mb-4 opacity-30">
+          <div class="wave-bar w-1.5 bg-fogon rounded-full"></div>
+          <div class="wave-bar w-1.5 bg-fogon rounded-full"></div>
+          <div class="wave-bar w-1.5 bg-fogon rounded-full"></div>
+          <div class="wave-bar w-1.5 bg-fogon rounded-full"></div>
+          <div class="wave-bar w-1.5 bg-fogon rounded-full"></div>
+        </div>
+
+        <!-- Controles: Play/Pause + volumen -->
+        <div class="flex items-center gap-3 mb-3">
+          <button id="noise-play" class="w-12 h-12 rounded-full bg-fogon text-white flex items-center justify-center hover:bg-fogon-700 transition flex-shrink-0">
+            <i data-lucide="play" class="w-5 h-5"></i>
+          </button>
+          <div class="flex-1">
+            <label class="text-[10px] font-semibold text-carbon-500 block mb-1">Volumen</label>
+            <input id="noise-volume" type="range" min="0" max="100" value="30" class="w-full" />
+          </div>
+        </div>
+
+        <p class="text-[10px] text-carbon-400 text-center">Audio generado en tiempo real con Web Audio API</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Overlay para cerrar el panel flotante al hacer clic fuera -->
+  <div id="floating-overlay" class="fixed inset-0 bg-carbon/40 z-40 hidden"></div>
+
+  <!-- ============================================================
+       MODAL: DETALLE DE RECETA
+  ============================================================ -->
+  <div id="recipe-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-carbon/50 backdrop-blur-sm" id="recipe-modal-backdrop"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto modal-enter">
+        <div id="recipe-modal-content">
+          <!-- Se renderiza dinámicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL: BUSCADOR DE RECETAS (para cambiar un plato del menú)
+  ============================================================ -->
+  <div id="search-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-carbon/50 backdrop-blur-sm" id="search-modal-backdrop"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto modal-enter">
+        <div class="p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-extrabold text-carbon">Cambiar plato</h3>
+            <button id="search-modal-close" class="w-8 h-8 rounded-lg hover:bg-lino flex items-center justify-center transition">
+              <i data-lucide="x" class="w-5 h-5 text-carbon-600"></i>
+            </button>
+          </div>
+          <div class="relative mb-4">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-carbon-400"></i>
+            <input id="search-modal-input" type="text" placeholder="Buscar receta..." class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-lino border border-lino-border text-sm focus:outline-none focus:border-albahaca" />
+          </div>
+          <div id="search-modal-results" class="space-y-2 max-h-96 overflow-y-auto">
+            <!-- Se renderiza dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TOAST — Notificaciones temporales
+  ============================================================ -->
+  <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"></div>
+
+  <!-- ============================================================
+       JAVASCRIPT — Toda la lógica de la aplicación
+  ============================================================ -->
+  <script>
+  /* =================================================================
+     GASTRIK — Aplicación web autocontenida
+     JavaScript Vanilla (ES6+) — sin frameworks
+     Persistencia: LocalForage (IndexedDB)
+     Audio: Web Audio API (Pomodoro beep + ruido blanco/rosa/marrón)
+  ================================================================= */
+
+  // ===============================================================
+  // 1. CONFIGURACIÓN DE LOCALFORAGE (IndexedDB explícito)
+  // ===============================================================
+  localforage.config({
+    name: 'gastrik-db',
+    storeName: 'gastrik_store',
+    description: 'Base de datos local de gastrik: menú semanal, favoritos, exclusiones, lista de compras y preferencias',
+    driver: localforage.INDEXEDDB,
+  });
+
+  // ===============================================================
+  // 1b. MANIFEST PWA — Inyectado dinámicamente para "Agregar al inicio"
+  // (Enfoque de archivo único: el manifest se crea como Blob URL)
+  // ===============================================================
+  (function inyectarManifest() {
+    const manifest = {
+      name: 'gastrik',
+      short_name: 'gastrik',
+      description: 'Planificador de menú semanal y recetario interactivo',
+      start_url: './',
+      display: 'standalone',
+      background_color: '#FBF9F5',
+      theme_color: '#C83E2B',
+      icons: [
+        { src: 'brand/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: 'brand/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: 'brand/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      ],
+    };
+    try {
+      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = url;
+      document.head.appendChild(link);
+    } catch (e) {
+      // Si falla la creación del Blob, el botón "Agregar al inicio" mostrará instrucciones manuales
+    }
+  })();
+
+  // ===============================================================
+  // 2. BASE DE DATOS DE RECETAS (Precargada — recetas caseras y postres)
+  // Cada receta: id, nombre, categoria, tiempoMinutos, porciones,
+  // calorias, etiquetas[], ingredientes[{item, cantidad}], pasos[]
+  // ===============================================================
+  const RECETAS = [
+    {
+      id: 'aji-gallina-ligero',
+      nombre: 'Ají de gallina ligero',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 45,
+      porciones: 4,
+      calorias: 380,
+      etiquetas: ['Sin lactosa', 'Económico', 'Criollo'],
+      ingredientes: [
+        { item: 'Pechuga de pollo cocida y deshilachada', cantidad: '500 g' },
+        { item: 'Pan de molde sin corteza', cantidad: '3 rebanadas' },
+        { item: 'Leche evaporada light', cantidad: '1 taza' },
+        { item: 'Ají amarillo molido', cantidad: '3 cucharadas' },
+        { item: 'Cebolla roja picada', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '2 dientes' },
+        { item: 'Nueces picadas', cantidad: '50 g' },
+        { item: 'Papas cocidas', cantidad: '4 unidades' },
+        { item: 'Huevo duro', cantidad: '2 unidades' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Remoja el pan en la leche evaporada por 10 minutos hasta que se ablande completamente.',
+        'En una olla, sofríe la cebolla y el ajo en aceite hasta que estén transparentes.',
+        'Agrega el ají amarillo molido y cocina por 5 minutos a fuego medio.',
+        'Licúa el pan remojado con la mezcla de cebolla y ají hasta obtener una crema suave.',
+        'Devuelve la crema a la olla, añade el pollo deshilachado y las nueces.',
+        'Cocina a fuego bajo por 10 minutos, revolviendo constantemente para que no se pegue.',
+        'Sirve sobre las papas cocidas y decora con huevo duro en rodajas y aceitunas.',
+      ],
+    },
+    {
+      id: 'lomo-saltado-casero',
+      nombre: 'Lomo saltado casero',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 35,
+      porciones: 4,
+      calorias: 520,
+      etiquetas: ['Alto en proteína', 'Criollo', 'Menos de 40 min'],
+      ingredientes: [
+        { item: 'Lomo de res en tiras', cantidad: '600 g' },
+        { item: 'Cebolla roja en tiras', cantidad: '1 unidad grande' },
+        { item: 'Tomate en tiras', cantidad: '2 unidades' },
+        { item: 'Ají amarillo en tiras', cantidad: '1 unidad' },
+        { item: 'Sillao (salsa de soya)', cantidad: '3 cucharadas' },
+        { item: 'Vinagre rojo', cantidad: '2 cucharadas' },
+        { item: 'Ajo molido', cantidad: '1 cucharadita' },
+        { item: 'Papas fritas', cantidad: '4 unidades' },
+        { item: 'Arroz blanco cocido', cantidad: '4 porciones' },
+        { item: 'Cilantro picado, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Calienta un wok u olla grande a fuego alto hasta que esté muy caliente.',
+        'Sella la carne en tiras con ajo, sal y pimienta por 2-3 minutos sin remover.',
+        'Agrega la cebolla y saltea por 1 minuto, debe quedar crocante.',
+        'Incorpora el tomate y el ají amarillo, saltea por otro minuto.',
+        'Vierte el sillao y el vinagre, mezcla rápidamente para glasear.',
+        'Apaga el fuego, añade el cilantro picado y mezcla.',
+        'Sirve inmediatamente acompañado de papas fritas y arroz blanco.',
+      ],
+    },
+    {
+      id: 'tallarines-verdes-bistec',
+      nombre: 'Tallarines verdes con bistec',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 40,
+      porciones: 4,
+      calorias: 610,
+      etiquetas: ['Alto en proteína', 'Económico'],
+      ingredientes: [
+        { item: 'Tallarines', cantidad: '400 g' },
+        { item: 'Bistec de res', cantidad: '4 unidades' },
+        { item: 'Espinaca fresca', cantidad: '1 atado' },
+        { item: 'Albahaca fresca', cantidad: '10 hojas' },
+        { item: 'Queso fresco', cantidad: '150 g' },
+        { item: 'Leche evaporada', cantidad: '1/2 taza' },
+        { item: 'Nueces', cantidad: '30 g' },
+        { item: 'Ajo', cantidad: '1 diente' },
+        { item: 'Aceite de oliva, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Cocina los tallarines en agua con sal según las indicaciones del paquete.',
+        'Blanquea la espinaca en agua hirviendo por 1 minuto, luego enfría en agua con hielo.',
+        'Licúa la espinaca, albahaca, queso fresco, leche, nueces y ajo hasta obtener una crema verde.',
+        'Sazona los bistecs con sal, pimienta y un poco de ajo molido.',
+        'En una sartén caliente con aceite, cocina los bistecs a término deseado (3-4 minutos por lado).',
+        'Mezcla los tallarines escurridos con la salsa verde en una olla a fuego bajo.',
+        'Sirve los tallarines verdes acompañados del bistec encima.',
+      ],
+    },
+    {
+      id: 'pollo-horno-papas',
+      nombre: 'Pollo al horno con papas doradas',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 75,
+      porciones: 6,
+      calorias: 450,
+      etiquetas: ['Económico', 'Sin lactosa', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Pollo entero o presas', cantidad: '1.5 kg' },
+        { item: 'Papas peladas', cantidad: '8 unidades' },
+        { item: 'Ají panca molido', cantidad: '2 cucharadas' },
+        { item: 'Ají amarillo molido', cantidad: '1 cucharada' },
+        { item: 'Ajo molido', cantidad: '3 dientes' },
+        { item: 'Comino, orégano y romero', cantidad: 'Al gusto' },
+        { item: 'Jugo de limón', cantidad: '1 limón' },
+        { item: 'Aceite vegetal, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Mezcla el ají panca, ají amarillo, ajo, comino, orégano, romero, limón, aceite, sal y pimienta.',
+        'Marina el pollo con esta mezcla y deja reposar al menos 30 minutos (idealmente 2 horas).',
+        'Precalienta el horno a 200°C.',
+        'Coloca el pollo en una bandeja y rodea con las papas cortadas en trozos grandes.',
+        'Hornea por 60-75 minutos, bañando el pollo con sus jugos cada 20 minutos.',
+        'El pollo estará listo cuando la piel esté dorada y los jugos salgan claros al pinchar.',
+        'Deja reposar 10 minutos antes de servir. Las papas absorberán el sabor del jugo.',
+      ],
+    },
+    {
+      id: 'arroz-chaufa-pollo',
+      nombre: 'Arroz chaufa de pollo',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 30,
+      porciones: 4,
+      calorias: 480,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Económico'],
+      ingredientes: [
+        { item: 'Arroz blanco cocido del día anterior', cantidad: '4 tazas' },
+        { item: 'Pechuga de pollo en cubos', cantidad: '300 g' },
+        { item: 'Huevos', cantidad: '2 unidades' },
+        { item: 'Cebolla china (cebollín)', cantidad: '3 tallos' },
+        { item: 'Sillao (salsa de soya)', cantidad: '4 cucharadas' },
+        { item: 'Aceite de sésamo', cantidad: '1 cucharada' },
+        { item: 'Jengibre rallado', cantidad: '1 cucharadita' },
+        { item: 'Arvejas chinas', cantidad: '100 g' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Calienta un wok a fuego alto y revuelve los huevos batidos hasta hacer una tortilla fina.',
+        'Retira la tortilla, córtala en tiras y reserva.',
+        'En el mismo wok, saltea el pollo en cubos con jengibre hasta dorar.',
+        'Agrega la cebolla china picada y las arvejas chinas, saltea por 1 minuto.',
+        'Incorpora el arroz frío y mezcla constantemente para que no se pegue.',
+        'Vierte el sillao y el aceite de sésamo, mezcla bien para que el arroz tome color uniforme.',
+        'Agrega las tiras de tortilla, ajusta la sal y sirve inmediatamente bien caliente.',
+      ],
+    },
+    {
+      id: 'seco-pollo-frejoles',
+      nombre: 'Seco de pollo con frejoles',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 60,
+      porciones: 4,
+      calorias: 520,
+      etiquetas: ['Criollo', 'Económico', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Presas de pollo', cantidad: '8 piezas' },
+        { item: 'Frejoles canarios cocidos', cantidad: '400 g' },
+        { item: 'Cilantro fresco picado', cantidad: '1 atado grande' },
+        { item: 'Ají amarillo molido', cantidad: '2 cucharadas' },
+        { item: 'Ají panca molido', cantidad: '1 cucharada' },
+        { item: 'Cebolla picada', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '3 dientes' },
+        { item: 'Cerveza o chicha de jora', cantidad: '1 taza' },
+        { item: 'Arroz blanco cocido', cantidad: '4 porciones' },
+        { item: 'Comino, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Sazona el pollo con sal, pimienta y comino. Déjalo reposar 15 minutos.',
+        'Dora las presas de pollo en una olla con aceite caliente, resérvalas.',
+        'En la misma olla, sofríe la cebolla, ajo, ají amarillo y ají panca por 5 minutos.',
+        'Agrega el cilantro fresco finamente picado y cocina 2 minutos más.',
+        'Licúa parte del aderezo con un poco de líquido para una salsa más suave.',
+        'Devuelve el pollo, añade la cerveza y cocina a fuego medio por 30 minutos.',
+        'Cuando el pollo esté tierno y la salsa haya reducido, ajusta la sal.',
+        'Sirve con frejoles cocidos y arroz blanco. Decora con cilantro fresco.',
+      ],
+    },
+    {
+      id: 'causa-rellena-atun',
+      nombre: 'Causa rellena de atún',
+      categoria: 'Ligero',
+      tiempoMinutos: 45,
+      porciones: 6,
+      calorias: 290,
+      etiquetas: ['Sin lactosa', 'Económico', 'Criollo'],
+      ingredientes: [
+        { item: 'Papa amarilla cocida', cantidad: '1 kg' },
+        { item: 'Atún en agua', cantidad: '2 latas' },
+        { item: 'Ají amarillo molido', cantidad: '3 cucharadas' },
+        { item: 'Limón', cantidad: '3 unidades' },
+        { item: 'Mayonesa light', cantidad: '3 cucharadas' },
+        { item: 'Cebolla roja picada fina', cantidad: '1 unidad' },
+        { item: 'Huevo duro', cantidad: '2 unidades' },
+        { item: 'Aceitunas', cantidad: '12 unidades' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Pisa la papa cocida caliente hasta formar un puré suave sin grumos.',
+        'Mezcla el puré con el ají amarillo, jugo de limón, aceite, sal y pimienta al gusto.',
+        'La masa de causa debe quedar suave pero firme para moldear.',
+        'Mezcla el atún escurrido con mayonesa, cebolla picada y un poco de limón.',
+        'En un molde o a mano, pon una capa de causa, luego el relleno de atún.',
+        'Cubre con otra capa de causa, presionando suavemente para que tome forma.',
+        'Decora con huevo duro en rodajas, aceitunas y un poco de perejil.',
+        'Sirve frío. Puede acompañarse con mayonesa adicional al gusto.',
+      ],
+    },
+    {
+      id: 'sopa-criolla',
+      nombre: 'Sopa criolla',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 50,
+      porciones: 6,
+      calorias: 240,
+      etiquetas: ['Económico', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Fideos finos (cabellos de ángel)', cantidad: '150 g' },
+        { item: 'Leche evaporada', cantidad: '1 taza' },
+        { item: 'Pan remojado en leche', cantidad: '2 rebanadas' },
+        { item: 'Ají amarillo molido', cantidad: '2 cucharadas' },
+        { item: 'Ají panca molido', cantidad: '1 cucharada' },
+        { item: 'Cebolla picada', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '2 dientes' },
+        { item: 'Huevo', cantidad: '1 unidad' },
+        { item: 'Queso fresco desmenuzado', cantidad: '100 g' },
+        { item: 'Caldo de pollo, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'En una olla, sofríe la cebolla y el ajo en aceite hasta que estén transparentes.',
+        'Agrega el ají amarillo y el ají panca, cocina por 5 minutos.',
+        'Licúa el pan remojado en leche con parte del aderezo para una crema suave.',
+        'Devuelve la crema a la olla y añade 1.5 litros de caldo de pollo.',
+        'Cuando hierva, agrega los fideos finos y cocina por 8-10 minutos.',
+        'Añade la leche evaporada en hilo y el queso desmenuzado.',
+        'Incorpora el huevo batido en hilo mientras revuelves suavemente.',
+        'Ajusta la sal y sirve inmediatamente con un poco de queso encima.',
+      ],
+    },
+    {
+      id: 'tortilla-verduras',
+      nombre: 'Tortilla de verduras',
+      categoria: 'Rápido',
+      tiempoMinutos: 20,
+      porciones: 2,
+      calorias: 280,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Huevos', cantidad: '4 unidades' },
+        { item: 'Zanahoria rallada', cantidad: '1 unidad' },
+        { item: 'Espinaca picada', cantidad: '1 taza' },
+        { item: 'Cebolla picada', cantidad: '1/2 unidad' },
+        { item: 'Tomate en cubos', cantidad: '1 unidad' },
+        { item: 'Ají amarillo picado', cantidad: '1 cucharada' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Bate los huevos en un bowl con sal y pimienta al gusto.',
+        'Agrega todas las verduras picadas y ralladas al bowl con los huevos.',
+        'Mezcla bien para que las verduras se integren uniformemente.',
+        'Calienta una sartén antiadherente con un poco de aceite a fuego medio.',
+        'Vierte la mezcla y cocina por 4-5 minutos hasta que los bordes se despeguen.',
+        'Da la vuelta con ayuda de un plato y cocina el otro lado por 3-4 minutos más.',
+        'Sirve caliente, cortada en porciones. Acompaña con ensalada verde.',
+      ],
+    },
+    {
+      id: 'ensalada-cesar-pollo',
+      nombre: 'Ensalada César con pollo',
+      categoria: 'Ligero',
+      tiempoMinutos: 25,
+      porciones: 2,
+      calorias: 340,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Lechuga romana', cantidad: '1 planta' },
+        { item: 'Pechuga de pollo grillada', cantidad: '200 g' },
+        { item: 'Pan en cubos para crutones', cantidad: '2 rebanadas' },
+        { item: 'Queso parmesano rallado', cantidad: '50 g' },
+        { item: 'Mayonesa', cantidad: '3 cucharadas' },
+        { item: 'Limón', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '1 diente' },
+        { item: 'Mostaza', cantidad: '1 cucharadita' },
+        { item: 'Anchoas (opcional)', cantidad: '2 filetes' },
+        { item: 'Aceite de oliva, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Tosta los cubos de pan en una sartén con aceite de oliva y ajo hasta dorar.',
+        'Grilla la pechuga de pollo sazonada con sal y pimienta, córtala en tiras.',
+        'Prepara la salsa César: licúa mayonesa, limón, ajo, mostaza, anchoas y queso.',
+        'Lava y corta la lechuga romana en trozos manejables.',
+        'En un bowl, mezcla la lechuga con la salsa César al gusto.',
+        'Agrega el pollo grillado en tiras y los crutones.',
+        'Termina con queso parmesano rallado encima y sirve inmediatamente.',
+      ],
+    },
+    {
+      id: 'pescado-plancha-ensalada',
+      nombre: 'Pescado a la plancha con ensalada fresca',
+      categoria: 'Cena',
+      tiempoMinutos: 20,
+      porciones: 2,
+      calorias: 310,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Filete de pescado (corvina o merluza)', cantidad: '300 g' },
+        { item: 'Mix de hojas verdes', cantidad: '4 tazas' },
+        { item: 'Tomate cherry', cantidad: '12 unidades' },
+        { item: 'Pepino en rodajas', cantidad: '1/2 unidad' },
+        { item: 'Limón', cantidad: '2 unidades' },
+        { item: 'Aceite de oliva', cantidad: '2 cucharadas' },
+        { item: 'Ajo, sal y pimienta', cantidad: 'Al gusto' },
+        { item: 'Eneldo o cilantro fresco', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Sazona los filetes de pescado con ajo molido, sal, pimienta y jugo de limón.',
+        'Calienta una plancha o sartén antiadherente a fuego medio-alto.',
+        'Cocina el pescado 3-4 minutos por lado hasta que se desmenuce fácilmente.',
+        'En un bowl, mezcla las hojas verdes, tomates cherry y pepino.',
+        'Aliña la ensalada con aceite de oliva, limón, sal y pimienta.',
+        'Sirve el pescado sobre la ensalada o a un costado.',
+        'Decora con eneldo o cilantro fresco y un chorrito de aceite de oliva.',
+      ],
+    },
+    {
+      id: 'quinua-atamalada',
+      nombre: 'Quinua atamalada',
+      categoria: 'Ligero',
+      tiempoMinutos: 35,
+      porciones: 4,
+      calorias: 260,
+      etiquetas: ['Sin lactosa', 'Económico', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Quinua', cantidad: '1 taza' },
+        { item: 'Leche evaporada light', cantidad: '1 taza' },
+        { item: 'Pan remojado en leche', cantidad: '1 rebanada' },
+        { item: 'Queso fresco en cubos', cantidad: '100 g' },
+        { item: 'Ají amarillo molido', cantidad: '1 cucharada' },
+        { item: 'Ajo molido', cantidad: '1 diente' },
+        { item: 'Cebolla picada', cantidad: '1/2 unidad' },
+        { item: 'Huevo', cantidad: '1 unidad' },
+        { item: 'Manteca, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Lava muy bien la quinua bajo agua corriente para quitar el sabor amargo.',
+        'Cocina la quinua en 2 tazas de agua con sal por 20 minutos hasta que esté suave.',
+        'En una olla, sofríe la cebolla y el ajo en manteca hasta que estén transparentes.',
+        'Agrega el ají amarillo y cocina por 3 minutos más.',
+        'Licúa el pan remojado con la leche y agrégalo al aderezo.',
+        'Incorpora la quinua cocida y mezcla bien con el queso en cubos.',
+        'Añade el huevo batido en hilo mientras revuelves suavemente.',
+        'Cocina a fuego bajo por 5 minutos y sirve caliente con queso encima.',
+      ],
+    },
+    {
+      id: 'estofado-pollo',
+      nombre: 'Estofado de pollo',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 55,
+      porciones: 4,
+      calorias: 430,
+      etiquetas: ['Criollo', 'Económico', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Presas de pollo', cantidad: '8 piezas' },
+        { item: 'Papa en cubos', cantidad: '4 unidades' },
+        { item: 'Zanahoria en rodajas', cantidad: '2 unidades' },
+        { item: 'Arvejas', cantidad: '1/2 taza' },
+        { item: 'Cebolla picada', cantidad: '1 unidad grande' },
+        { item: 'Ají panca molido', cantidad: '2 cucharadas' },
+        { item: 'Ají amarillo molido', cantidad: '1 cucharada' },
+        { item: 'Ajo molido', cantidad: '3 dientes' },
+        { item: 'Tomate rallado', cantidad: '2 unidades' },
+        { item: 'Caldo de pollo, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Sazona el pollo con sal y pimienta, dóralo en una olla con aceite caliente.',
+        'Retira el pollo y en la misma olla sofríe la cebolla con el ajo.',
+        'Agrega los ajíes molidos y el tomate rallado, cocina por 5 minutos.',
+        'Devuelve el pollo a la olla y añade caldo hasta cubrir las presas.',
+        'Añade las zanahorias y cocina a fuego medio por 25 minutos.',
+        'Incorpora las papas y las arvejas, cocina 15 minutos más.',
+        'El pollo debe estar tierno y la salsa debe haber espesado.',
+        'Ajusta la sal y sirve caliente con arroz blanco.',
+      ],
+    },
+    {
+      id: 'ceviche-pollo-cocido',
+      nombre: 'Ceviche de pollo cocido',
+      categoria: 'Ligero',
+      tiempoMinutos: 25,
+      porciones: 4,
+      calorias: 220,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Pechuga de pollo cocida y deshilachada', cantidad: '400 g' },
+        { item: 'Cebolla roja en tiras finas', cantidad: '1 unidad grande' },
+        { item: 'Limón', cantidad: '6 unidades' },
+        { item: 'Ají amarillo picado', cantidad: '2 unidades' },
+        { item: 'Ají limo picado', cantidad: '1 unidad' },
+        { item: 'Cilantro picado', cantidad: 'Al gusto' },
+        { item: 'Lechuga', cantidad: '4 hojas' },
+        { item: 'Camote cocido', cantidad: '1 unidad' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Coloca el pollo deshilachado en un bowl amplio.',
+        'Agrega la cebolla en tiras finas previamente lavada en agua con sal.',
+        'Incorpora el ají amarillo y el ají limo picados finamente.',
+        'Exprime los limones directamente sobre el pollo y las verduras.',
+        'Añade sal, pimienta y mezcla todo muy bien. Deja reposar 5 minutos.',
+        'Agrega cilantro picado al gusto y mezcla suavemente.',
+        'Sirve sobre una hoja de lechuga con camote cocido de acompañante.',
+      ],
+    },
+    {
+      id: 'carapulcra',
+      nombre: 'Carapulcra',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 90,
+      porciones: 6,
+      calorias: 560,
+      etiquetas: ['Criollo', 'Económico'],
+      ingredientes: [
+        { item: 'Papa seca', cantidad: '500 g' },
+        { item: 'Carne de cerdo en cubos', cantidad: '500 g' },
+        { item: 'Cebolla picada', cantidad: '2 unidades' },
+        { item: 'Ají panca molido', cantidad: '3 cucharadas' },
+        { item: 'Ají amarillo molido', cantidad: '2 cucharadas' },
+        { item: 'Ajo molido', cantidad: '4 dientes' },
+        { item: 'Maní tostado molido', cantidad: '100 g' },
+        { item: 'Cacao en polvo', cantidad: '1 cucharada' },
+        { item: 'Vino tinto o chicha de jora', cantidad: '1 taza' },
+        { item: 'Comino, clavo, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Tuesta la papa seca en una sartén seca hasta dorar ligeramente, luego lava bien.',
+        'Remoja la papa seca en agua tibia por 30 minutos mientras preparas el aderezo.',
+        'En una olla grande, dora la carne de cerdo en cubos con sal y pimienta.',
+        'Retira la carne y sofríe la cebolla con el ajo hasta que estén transparentes.',
+        'Agrega los ajíes molidos, comino y clavo, cocina por 5 minutos.',
+        'Devuelve la carne, añade el vino y la papa seca escurrida.',
+        'Cocina a fuego medio por 45 minutos, añadiendo caldo si es necesario.',
+        'Incorpora el maní molido y el cacao, cocina 15 minutos más y ajusta la sal.',
+      ],
+    },
+    {
+      id: 'arroz-pollo',
+      nombre: 'Arroz con pollo',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 50,
+      porciones: 6,
+      calorias: 480,
+      etiquetas: ['Criollo', 'Económico', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Arroz', cantidad: '3 tazas' },
+        { item: 'Presas de pollo', cantidad: '6 piezas' },
+        { item: 'Cilantro fresco', cantidad: '1 atado grande' },
+        { item: 'Espinaca', cantidad: '1/2 taza' },
+        { item: 'Ají amarillo molido', cantidad: '2 cucharadas' },
+        { item: 'Cebolla picada', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '3 dientes' },
+        { item: 'Arvejas y zanahoria', cantidad: '1 taza' },
+        { item: 'Pimiento rojo', cantidad: '1 unidad' },
+        { item: 'Caldo de pollo, sal y comino', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Licúa el cilantro con la espinaca y un poco de caldo para hacer la salsa verde.',
+        'Sazona el pollo con sal, pimienta y comino. Dóralo en una olla y reserva.',
+        'En la misma olla, sofríe la cebolla y el ajo con el ají amarillo.',
+        'Agrega el pimiento en tiras, las arvejas y la zanahoria en cubos.',
+        'Incorpora el arroz lavado y mezcla bien con el aderezo.',
+        'Añade la salsa verde de cilantro y el caldo necesario (3 tazas por cada taza de arroz).',
+        'Coloca las presas de pollo encima del arroz.',
+        'Cocina a fuego alto hasta que hierva, luego baja al mínimo por 20 minutos.',
+      ],
+    },
+    {
+      id: 'salchipapa-horno',
+      nombre: 'Salchipapa al horno',
+      categoria: 'Rápido',
+      tiempoMinutos: 30,
+      porciones: 4,
+      calorias: 410,
+      etiquetas: ['Rápido', 'Económico', 'Menos de 30 min'],
+      ingredientes: [
+        { item: 'Papas en bastones', cantidad: '6 unidades' },
+        { item: 'Salchicha', cantidad: '6 unidades' },
+        { item: 'Ají amarillo molido', cantidad: '1 cucharada' },
+        { item: 'Ajo en polvo', cantidad: '1 cucharadita' },
+        { item: 'Páprika', cantidad: '1 cucharadita' },
+        { item: 'Aceite de oliva', cantidad: '2 cucharadas' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Precalienta el horno a 220°C.',
+        'Pela y corta las papas en bastones gruesos.',
+        'Mezcla las papas con aceite de oliva, ají, ajo en polvo, páprika, sal y pimienta.',
+        'Corta las salchichas en rodajas gruesas.',
+        'Coloca las papas en una bandeja de horno y distribuye las salchichas encima.',
+        'Hornea por 20-25 minutos hasta que las papas estén doradas y crocantes.',
+        'Sirve caliente con salsa de tu preferencia (ketchup, mostaza o ají casero).',
+      ],
+    },
+    {
+      id: 'tacos-pollo-caseros',
+      nombre: 'Tacos de pollo caseros',
+      categoria: 'Cena',
+      tiempoMinutos: 30,
+      porciones: 4,
+      calorias: 380,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Tortillas de maíz', cantidad: '8 unidades' },
+        { item: 'Pechuga de pollo en tiras', cantidad: '400 g' },
+        { item: 'Pimiento rojo en tiras', cantidad: '1 unidad' },
+        { item: 'Pimiento verde en tiras', cantidad: '1 unidad' },
+        { item: 'Cebolla en tiras', cantidad: '1 unidad' },
+        { item: 'Comino y orégano', cantidad: 'Al gusto' },
+        { item: 'Limón', cantidad: '1 unidad' },
+        { item: 'Lechuga picada', cantidad: '2 tazas' },
+        { item: 'Tomate picado', cantidad: '2 unidades' },
+        { item: 'Cilantro, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Sazona el pollo con comino, orégano, limón, sal y pimienta.',
+        'Calienta una sartén y saltea el pollo hasta dorar, reserva.',
+        'En la misma sartén, saltea los pimientos y la cebolla hasta que estén al dente.',
+        'Mezcla el pollo con los vegetales y mantén caliente.',
+        'Calienta las tortillas en una sartén seca o en el horno por 30 segundos.',
+        'Rellena cada tortilla con la mezcla de pollo y vegetales.',
+        'Agrega lechuga, tomate y cilantro al gusto. Sirve inmediatamente.',
+      ],
+    },
+    {
+      id: 'hamburguesa-lentejas',
+      nombre: 'Hamburguesa de lentejas',
+      categoria: 'Cena',
+      tiempoMinutos: 40,
+      porciones: 4,
+      calorias: 320,
+      etiquetas: ['Sin lactosa', 'Económico', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Lentejas cocidas', cantidad: '2 tazas' },
+        { item: 'Pan rallado', cantidad: '1/2 taza' },
+        { item: 'Cebolla picada fina', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '2 dientes' },
+        { item: 'Zanahoria rallada', cantidad: '1 unidad' },
+        { item: 'Huevo', cantidad: '1 unidad' },
+        { item: 'Comino y páprika', cantidad: 'Al gusto' },
+        { item: 'Pan para hamburguesa', cantidad: '4 unidades' },
+        { item: 'Lechuga y tomate', cantidad: 'Para acompañar' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'En un bowl, machaca las lentejas cocidas hasta obtener una pasta con algo de textura.',
+        'Sofríe la cebolla, el ajo y la zanahoria por 3 minutos, deja enfriar.',
+        'Mezcla las lentejas con los vegetales sofritos, el huevo, pan rallado y especias.',
+        'Forma 4 hamburguesas con las manos húmedas para que no se peguen.',
+        'Calienta una sartén con aceite a fuego medio.',
+        'Cocina las hamburguesas 4-5 minutos por lado hasta dorar bien.',
+        'Tuesta los panes y arma con lechuga, tomate y la hamburguesa de lentejas.',
+      ],
+    },
+    {
+      id: 'ajiaco-papas',
+      nombre: 'Ajiaco de papas',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 45,
+      porciones: 4,
+      calorias: 350,
+      etiquetas: ['Criollo', 'Económico', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Papa amarilla', cantidad: '1 kg' },
+        { item: 'Queso fresco desmenuzado', cantidad: '150 g' },
+        { item: 'Leche evaporada', cantidad: '1 taza' },
+        { item: 'Huacatay fresco', cantidad: '3 ramas' },
+        { item: 'Ají amarillo molido', cantidad: '3 cucharadas' },
+        { item: 'Cebolla picada', cantidad: '1 unidad' },
+        { item: 'Ajo molido', cantidad: '2 dientes' },
+        { item: 'Huevo duro', cantidad: '2 unidades' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Pela y corta las papas en cubos medianos.',
+        'En una olla, sofríe la cebolla y el ajo en aceite hasta que estén transparentes.',
+        'Agrega el ají amarillo y el huacatay picado, cocina por 3 minutos.',
+        'Incorpora las papas y cubre con agua o caldo, cocina hasta que estén tiernas.',
+        'Cuando las papas estén suaves, aplasta algunas para espesar la salsa naturalmente.',
+        'Añade la leche evaporada en hilo y el queso desmenuzado.',
+        'Cocina a fuego bajo por 5 minutos revolviendo suavemente.',
+        'Sirve caliente con huevo duro en rodajas y papas enteras visibles.',
+      ],
+    },
+    {
+      id: 'tacu-tacu-frejoles',
+      nombre: 'Tacu tacu de frejoles',
+      categoria: 'Almuerzo',
+      tiempoMinutos: 35,
+      porciones: 4,
+      calorias: 420,
+      etiquetas: ['Criollo', 'Económico', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Frejoles cocidos', cantidad: '3 tazas' },
+        { item: 'Arroz blanco cocido', cantidad: '2 tazas' },
+        { item: 'Cebolla picada', cantidad: '1 unidad' },
+        { item: 'Ají amarillo molido', cantidad: '2 cucharadas' },
+        { item: 'Ají panca molido', cantidad: '1 cucharada' },
+        { item: 'Ajo molido', cantidad: '2 dientes' },
+        { item: 'Huevo', cantidad: '4 unidades' },
+        { item: 'Plátano de freír', cantidad: '2 unidades' },
+        { item: 'Aceite, sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'En una sartén, sofríe la cebolla y el ajo hasta que estén transparentes.',
+        'Agrega los ajíes molidos y cocina por 3 minutos.',
+        'Incorpora los frejoles cocidos y el arroz, mezcla bien y aplasta ligeramente.',
+        'Cocina a fuego medio hasta que la mezcla se compacte y se dore el fondo.',
+        'Da la vuelta como una tortilla grande con ayuda de un plato.',
+        'Fríe los plátanos en rodajas hasta dorar.',
+        'Sirve el tacu tacu con un huevo frito encima y los plátanos dorados de acompañante.',
+      ],
+    },
+    {
+      id: 'papa-huancaina-light',
+      nombre: 'Papa a la huancaína light',
+      categoria: 'Ligero',
+      tiempoMinutos: 25,
+      porciones: 4,
+      calorias: 270,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Económico'],
+      ingredientes: [
+        { item: 'Papa amarilla cocida', cantidad: '8 unidades' },
+        { item: 'Queso fresco light', cantidad: '150 g' },
+        { item: 'Leche evaporada light', cantidad: '1/2 taza' },
+        { item: 'Ají amarillo molido', cantidad: '3 cucharadas' },
+        { item: 'Galleta de soda', cantidad: '2 unidades' },
+        { item: 'Huevo duro', cantidad: '2 unidades' },
+        { item: 'Aceitunas', cantidad: '8 unidades' },
+        { item: 'Lechuga', cantidad: '4 hojas' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Cocina las papas amarillas hasta que estén suaves, pela y reserva.',
+        'Licúa el queso fresco con la leche, el ají amarillo y las galletas.',
+        'La salsa debe quedar cremosa pero no demasiado líquida, ajusta con más galleta si es necesario.',
+        'Sazona la salsa con sal y pimienta al gusto.',
+        'Coloca una hoja de lechuga en cada plato como base.',
+        'Distribuye las papas cocidas sobre la lechuga.',
+        'Baña generosamente con la salsa huancaína.',
+        'Decora con huevo duro en rodajas y aceitunas. Sirve a temperatura ambiente.',
+      ],
+    },
+    // ===============================================================
+    // RECETAS DE POSTRES
+    // ===============================================================
+    {
+      id: 'arroz-leche',
+      nombre: 'Arroz con leche',
+      categoria: 'Postre',
+      tiempoMinutos: 50,
+      porciones: 6,
+      calorias: 280,
+      etiquetas: ['Económico', 'Sin lactosa', 'Postre'],
+      ingredientes: [
+        { item: 'Arroz', cantidad: '1 taza' },
+        { item: 'Leche evaporada', cantidad: '1 lata' },
+        { item: 'Leche condensada', cantidad: '1 lata' },
+        { item: 'Leche entera', cantidad: '2 tazas' },
+        { item: 'Canela en raja', cantidad: '2 unidades' },
+        { item: 'Clavo de olor', cantidad: '2 unidades' },
+        { item: 'Pasa de uva rubia', cantidad: '50 g' },
+        { item: 'Azúcar', cantidad: '3 cucharadas' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Canela en polvo', cantidad: 'Para espolvorear' },
+      ],
+      pasos: [
+        'Lava el arroz bajo agua fría hasta que salga clara.',
+        'En una olla, pon a hervir la leche entera con la canela en raja y el clavo de olor.',
+        'Agrega el arroz lavado y cocina a fuego medio por 20 minutos revolviendo constantemente.',
+        'Cuando el arroz esté tierno, añade la leche evaporada y la leche condensada.',
+        'Incorpora las pasas y el azúcar, mezcla bien.',
+        'Cocina a fuego bajo por 10 minutos más hasta que espese, revolviendo para que no se pegue.',
+        'Agrega la esencia de vainilla y retira del fuego.',
+        'Sirve tibio o frío espolvoreado con canela en polvo.',
+      ],
+    },
+    {
+      id: 'mazamorra-morada',
+      nombre: 'Mazamorra morada',
+      categoria: 'Postre',
+      tiempoMinutos: 60,
+      porciones: 8,
+      calorias: 220,
+      etiquetas: ['Económico', 'Criollo', 'Postre'],
+      ingredientes: [
+        { item: 'Maíz morado', cantidad: '500 g' },
+        { item: 'Piña', cantidad: '1 unidad' },
+        { item: 'Manzana', cantidad: '2 unidades' },
+        { item: 'Membrillo', cantidad: '1 unidad' },
+        { item: 'Camote', cantidad: '1 unidad' },
+        { item: 'Guindas', cantidad: '100 g' },
+        { item: 'Azúcar', cantidad: '1 taza' },
+        { item: 'Harina de camote o chuño', cantidad: '3 cucharadas' },
+        { item: 'Canela en raja y clavo de olor', cantidad: 'Al gusto' },
+        { item: 'Limón', cantidad: '1 unidad' },
+      ],
+      pasos: [
+        'Lava bien el maíz morado y ponlo a hervir con abundante agua, canela y clavo de olor por 40 minutos.',
+        'Cuela y reserva el agua de cocción (el maíz se desecha o se usa para otra preparación).',
+        'Al agua de cocción, agrega la cáscara de piña, las manzanas en cubos, el membrillo en cubos y el camote en cubos.',
+        'Cocina por 15 minutos hasta que las frutas estén tiernas.',
+        'Añade las guindas, el azúcar y el jugo de limón.',
+        'Disuelve la harina de camote en un poco de agua fría y agrégala en hilo mientras revuelves.',
+        'Cocina por 5 minutos más revolviendo constantemente hasta que espese.',
+        'Sirve tibia o fría. Puede acompañarse con arroz con leche.',
+      ],
+    },
+    {
+      id: 'picarones',
+      nombre: 'Picarones',
+      categoria: 'Postre',
+      tiempoMinutos: 55,
+      porciones: 6,
+      calorias: 320,
+      etiquetas: ['Criollo', 'Postre'],
+      ingredientes: [
+        { item: 'Harina preparada', cantidad: '2 tazas' },
+        { item: 'Camote cocido', cantidad: '1 unidad' },
+        { item: 'Zapallo macre cocido', cantidad: '200 g' },
+        { item: 'Leche evaporada', cantidad: '1/2 taza' },
+        { item: 'Huevo', cantidad: '1 unidad' },
+        { item: 'Anís entero', cantidad: '1 cucharada' },
+        { item: 'Levadura', cantidad: '10 g' },
+        { item: 'Azúcar', cantidad: '2 cucharadas' },
+        { item: 'Aceite para freír', cantidad: 'Cantidad necesaria' },
+        { item: 'Chancaca (panela)', cantidad: '300 g' },
+      ],
+      pasos: [
+        'Prepara un puré con el camote y el zapallo cocidos, mézclalos con la leche tibia.',
+        'Disuelve la levadura en un poco de agua tibia con el azúcar y déjala reposar 10 minutos.',
+        'En un bowl, mezcla la harina, el puré, el huevo, la levadura y el anís.',
+        'Amasa hasta obtener una masa suave y elástica que no se pegue a las manos.',
+        'Deja reposar la masa cubierta por 30 minutos en un lugar tibio.',
+        'Mientras tanto, prepara la miel: hierve la chancaca con agua y un poco de canela hasta obtener una miel espesa.',
+        'Forma los picarones: toma porciones de masa, haz un aro y fríelos en aceite caliente.',
+        'Sirve inmediatamente bañados en la miel de chancaca tibia.',
+      ],
+    },
+    {
+      id: 'tres-leches',
+      nombre: 'Tres leches',
+      categoria: 'Postre',
+      tiempoMinutos: 70,
+      porciones: 8,
+      calorias: 350,
+      etiquetas: ['Postre', 'Económico'],
+      ingredientes: [
+        { item: 'Harina preparada', cantidad: '1 taza' },
+        { item: 'Azúcar', cantidad: '1 taza' },
+        { item: 'Huevos', cantidad: '5 unidades' },
+        { item: 'Polvo de hornear', cantidad: '1 cucharadita' },
+        { item: 'Leche evaporada', cantidad: '1 lata' },
+        { item: 'Leche condensada', cantidad: '1 lata' },
+        { item: 'Leche entera', cantidad: '1 taza' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Crema de leche', cantidad: '200 ml' },
+        { item: 'Canela en polvo', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'Precalienta el horno a 180°C y prepara un molde rectangular engrasado.',
+        'Bate las claras a punto de nieve, agrega el azúcar gradualmente y luego las yemas una por una.',
+        'Tamiza la harina con el polvo de hornear e incorpórala a la mezcla con movimientos envolventes.',
+        'Vierte la mezcla en el molde y hornea por 25-30 minutos hasta que esté dorado.',
+        'Deja enfriar el bizcocho y pínchalo con un palillo en varios lugares.',
+        'Mezcla las tres leches (evaporada, condensada y entera) con la vainilla.',
+        'Baña el bizcocho con la mezcla de leches poco a poco para que absorba todo.',
+        'Deja reposar en el refrigerador por 2 horas. Decora con crema chantilly y canela.',
+      ],
+    },
+    {
+      id: 'suspiro-limena',
+      nombre: 'Suspiro a la limeña',
+      categoria: 'Postre',
+      tiempoMinutos: 40,
+      porciones: 6,
+      calorias: 290,
+      etiquetas: ['Criollo', 'Postre'],
+      ingredientes: [
+        { item: 'Leche condensada', cantidad: '1 lata' },
+        { item: 'Leche evaporada', cantidad: '1 lata' },
+        { item: 'Yemas de huevo', cantidad: '5 unidades' },
+        { item: 'Azúcar', cantidad: '1 taza' },
+        { item: 'Claras de huevo', cantidad: '3 unidades' },
+        { item: 'Oporto o vino dulce', cantidad: '50 ml' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Canela en polvo', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'En una olla, mezcla la leche condensada y la leche evaporada. Lleva a fuego bajo.',
+        'Cuando empiece a hervir, agrega las yemas previamente batidas en hilo mientras revuelves.',
+        'Cocina a fuego bajo revolviendo constantemente hasta que espese como una crema.',
+        'Añade la esencia de vainilla y retira del fuego.',
+        'Distribuye la crema en copas individuales y deja enfriar.',
+        'Prepara el merengue: haz un almíbar con el azúcar y el oporto a punto de hebra.',
+        'Bate las claras a punto de nieve y agrega el almíbar en hilo mientras bate.',
+        'Cubre cada copa con el merengue y espolvorea con canela en polvo.',
+      ],
+    },
+    {
+      id: 'crema-volteada',
+      nombre: 'Crema volteada (leche asada)',
+      categoria: 'Postre',
+      tiempoMinutos: 80,
+      porciones: 8,
+      calorias: 310,
+      etiquetas: ['Económico', 'Postre'],
+      ingredientes: [
+        { item: 'Leche entera', cantidad: '1 litro' },
+        { item: 'Leche condensada', cantidad: '1 lata' },
+        { item: 'Leche evaporada', cantidad: '1 lata' },
+        { item: 'Huevos', cantidad: '6 unidades' },
+        { item: 'Azúcar', cantidad: '1 taza' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Canela en raja', cantidad: '1 unidad' },
+        { item: 'Azúcar para el caramelo', cantidad: '1/2 taza' },
+      ],
+      pasos: [
+        'Prepara el caramelo: derrite media taza de azúcar en una olla hasta que esté dorado.',
+        'Vierte el caramelo en el fondo y paredes de un molde de flan o pyrex.',
+        'En una olla, calienta la leche entera con la canela en raja hasta que hierva. Retira del fuego.',
+        'En un bowl, bate los huevos con la leche condensada, la leche evaporada, el azúcar y la vainilla.',
+        'Agrega la leche entera caliente (sin la canela) en hilo mientras revuelves.',
+        'Cuela la mezcla y viértela en el molde acaramelado.',
+        'Hornea al baño maría a 180°C por 50-60 minutos hasta que cuaje.',
+        'Deja enfriar y desmolda. Sirve frío.',
+      ],
+    },
+    {
+      id: 'ranfanote',
+      nombre: 'Ranfañote',
+      categoria: 'Postre',
+      tiempoMinutos: 45,
+      porciones: 6,
+      calorias: 340,
+      etiquetas: ['Criollo', 'Económico', 'Postre'],
+      ingredientes: [
+        { item: 'Pan francés dulce', cantidad: '6 unidades' },
+        { item: 'Chancaca (panela)', cantidad: '400 g' },
+        { item: 'Leche evaporada', cantidad: '1 taza' },
+        { item: 'Manteca de cerdo o mantequilla', cantidad: '100 g' },
+        { item: 'Canela en raja', cantidad: '2 unidades' },
+        { item: 'Clavo de olor', cantidad: '3 unidades' },
+        { item: 'Anís entero', cantidad: '1 cucharada' },
+        { item: 'Coco rallado', cantidad: '50 g' },
+        { item: 'Queso fresco', cantidad: '100 g' },
+      ],
+      pasos: [
+        'Corta el pan en rebanadas y tuéstalo ligeramente en el horno.',
+        'En una olla, hierve la chancaca con agua, canela, clavo de olor y anís hasta formar una miel.',
+        'Agrega la leche evaporada y la manteca a la miel.',
+        'Incorpora el pan tostado en la miel y deja que se empape bien.',
+        'Cocina a fuego bajo por 10 minutos revolviendo suavemente.',
+        'Añade el coco rallado y el queso fresco en cubos pequeños.',
+        'Mezcla suavemente y retira del fuego.',
+        'Sirve tibio en porciones individuales.',
+      ],
+    },
+    {
+      id: 'chumbeque',
+      nombre: 'Chumbeque',
+      categoria: 'Postre',
+      tiempoMinutos: 90,
+      porciones: 10,
+      calorias: 260,
+      etiquetas: ['Criollo', 'Postre'],
+      ingredientes: [
+        { item: 'Harina sin preparar', cantidad: '3 tazas' },
+        { item: 'Manteca', cantidad: '100 g' },
+        { item: 'Azúcar', cantidad: '1/2 taza' },
+        { item: 'Huevos', cantidad: '2 unidades' },
+        { item: 'Pisco', cantidad: '2 cucharadas' },
+        { item: 'Anís en grano', cantidad: '1 cucharadita' },
+        { item: 'Sal', cantidad: '1 pizca' },
+        { item: 'Miel de chancaca', cantidad: '2 tazas' },
+        { item: 'Grageas de colores', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'Tamiza la harina con la sal y haz un volcán en la mesa.',
+        'En el centro, pon la manteca, el azúcar, los huevos, el pisco y el anís.',
+        'Amasa hasta obtener una masa suave y homogénea.',
+        'Estira la masa fina y corta en rectángulos pequeños.',
+        'Fríe los rectángulos en aceite caliente hasta dorar. Escurre en papel.',
+        'Prepara la miel de chancaca hirviendo chancaca con agua hasta punto de hebra.',
+        'Sumerge los rectángulos fritos en la miel de chancaca caliente.',
+        'Presiona las capas una sobre otra formando torres. Decora con grageas.',
+      ],
+    },
+    {
+      id: 'humitas-dulces',
+      nombre: 'Humitas dulces',
+      categoria: 'Postre',
+      tiempoMinutos: 60,
+      porciones: 8,
+      calorias: 240,
+      etiquetas: ['Criollo', 'Económico', 'Postre'],
+      ingredientes: [
+        { item: 'Maíz choclo', cantidad: '12 unidades' },
+        { item: 'Azúcar rubia', cantidad: '1 taza' },
+        { item: 'Manteca', cantidad: '100 g' },
+        { item: 'Anís entero', cantidad: '1 cucharada' },
+        { item: 'Canela en raja', cantidad: '2 unidades' },
+        { item: 'Pasas', cantidad: '50 g' },
+        { item: 'Leche evaporada', cantidad: '1/2 taza' },
+        { item: 'Hojas de maíz (pancas)', cantidad: 'Para envolver' },
+        { item: 'Sal', cantidad: '1 pizca' },
+      ],
+      pasos: [
+        'Desgrana los choclos y licúa los granos con la leche hasta obtener una pasta.',
+        'Pasa la pasta por un colador para retirar los pellejos.',
+        'En una olla, derrite la manteca y agrega la pasta de maíz.',
+        'Añade el azúcar, el anís, la canela, las pasas y una pizca de sal.',
+        'Cocina a fuego medio revolviendo constantemente hasta que la masa se despegue del fondo.',
+        'Limpia las hojas de maíz y úsalas para envolver porciones de la masa.',
+        'Ata las humitas con tiras de la misma hoja.',
+        'Cocina al vapor por 30 minutos. Sirve calientes.',
+      ],
+    },
+    {
+      id: 'turon-dona-pepa',
+      nombre: 'Turrón de Doña Pepa',
+      categoria: 'Postre',
+      tiempoMinutos: 90,
+      porciones: 12,
+      calorias: 380,
+      etiquetas: ['Criollo', 'Postre'],
+      ingredientes: [
+        { item: 'Harina sin preparar', cantidad: '1 kg' },
+        { item: 'Manteca', cantidad: '250 g' },
+        { item: 'Azúcar', cantidad: '1 taza' },
+        { item: 'Huevos', cantidad: '6 unidades' },
+        { item: 'Anís en grano', cantidad: '2 cucharadas' },
+        { item: 'Agua', cantidad: '1/2 taza' },
+        { item: 'Chancaca', cantidad: '1 kg' },
+        { item: 'Frutas abrillantadas', cantidad: '200 g' },
+        { item: 'Grageas de colores', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'Hierve el anís en media taza de agua, cuela y reserva el agua de anís.',
+        'En la mesa, haz un volcán con la harina, pon la manteca, azúcar, huevos y el agua de anís.',
+        'Amasa hasta obtener una masa suave. Deja reposar 30 minutos.',
+        'Estira la masa y corta tiras largas de unos 2 cm de ancho.',
+        'Hornea las tiras a 180°C por 15-20 minutos hasta dorar.',
+        'Prepara la miel: hierve la chancaca con agua hasta punto de hebra fuerte.',
+        'En un molde, acomoda capas de tiras horneadas bañadas en miel de chancaca.',
+        'Decora con frutas abrillantadas y grageas de colores. Deja asentar.',
+      ],
+    },
+    // ===============================================================
+    // RECETAS DE DESAYUNO
+    // ===============================================================
+    {
+      id: 'huevos-revueltos-tocino',
+      nombre: 'Huevos revueltos con tocino',
+      categoria: 'Desayuno',
+      tiempoMinutos: 15,
+      porciones: 2,
+      calorias: 320,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Huevos', cantidad: '4 unidades' },
+        { item: 'Tocino en tiras', cantidad: '4 rebanadas' },
+        { item: 'Pan tostado', cantidad: '2 rebanadas' },
+        { item: 'Mantequilla', cantidad: '1 cucharada' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+        { item: 'Cebollín picado', cantidad: '1 cucharada' },
+      ],
+      pasos: [
+        'En una sartén a fuego medio, fríe el tocino hasta que esté crocante (4-5 minutos por lado).',
+        'Retira el tocino y déjalo sobre papel absorbente.',
+        'En la misma sartén con la grasa del tocino, añade la mantequilla.',
+        'Bate los huevos con sal y pimienta al gusto.',
+        'Vierte los huevos en la sartén a fuego bajo y revuelve suavemente con una espátula.',
+        'Cocina hasta que estén cremosos pero firmes (3-4 minutos).',
+        'Sirve los huevos con el tocino crocante, pan tostado y espolvorea cebollín picado.',
+      ],
+    },
+    {
+      id: 'avena-frutas',
+      nombre: 'Avena cocida con frutas',
+      categoria: 'Desayuno',
+      tiempoMinutos: 15,
+      porciones: 2,
+      calorias: 250,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Avena en hojuelas', cantidad: '1 taza' },
+        { item: 'Leche o leche vegetal', cantidad: '2 tazas' },
+        { item: 'Plátano en rodajas', cantidad: '1 unidad' },
+        { item: 'Fresas picadas', cantidad: '6 unidades' },
+        { item: 'Miel', cantidad: '2 cucharadas' },
+        { item: 'Canela en polvo', cantidad: '1 cucharadita' },
+        { item: 'Nueces picadas', cantidad: '30 g' },
+      ],
+      pasos: [
+        'En una olla, lleva la leche a fuego medio hasta que tibie.',
+        'Agrega la avena y cocina por 5-7 minutos revolviendo hasta que espese.',
+        'Añade la canela y mezcla bien.',
+        'Sirve la avena en bowls individuales.',
+        'Decora con rodajas de plátano, fresas picadas y nueces.',
+        'Baña con miel al gusto y sirve tibia.',
+      ],
+    },
+    {
+      id: 'tostadas-francesas',
+      nombre: 'Tostadas francesas',
+      categoria: 'Desayuno',
+      tiempoMinutos: 20,
+      porciones: 3,
+      calorias: 290,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Económico'],
+      ingredientes: [
+        { item: 'Pan de molde', cantidad: '6 rebanadas' },
+        { item: 'Huevos', cantidad: '3 unidades' },
+        { item: 'Leche', cantidad: '1/2 taza' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Canela en polvo', cantidad: '1 cucharadita' },
+        { item: 'Mantequilla', cantidad: '2 cucharadas' },
+        { item: 'Miel o azúcar impalpable', cantidad: 'Al gusto' },
+        { item: 'Frutas frescas', cantidad: 'Para acompañar' },
+      ],
+      pasos: [
+        'En un bowl, bate los huevos con la leche, vainilla y canela.',
+        'Calienta una sartén con mantequilla a fuego medio.',
+        'Sumerge cada rebanada de pan en la mezcla de huevo por 10 segundos por lado.',
+        'Fríe las tostadas en la sartén por 2-3 minutos por lado hasta dorar.',
+        'Sirve inmediatamente con miel o azúcar impalpable espolvoreado.',
+        'Acompaña con frutas frescas de temporada.',
+      ],
+    },
+    {
+      id: 'sandwich-huevo',
+      nombre: 'Sándwich de huevo',
+      categoria: 'Desayuno',
+      tiempoMinutos: 15,
+      porciones: 2,
+      calorias: 340,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Pan ciabatta o baguette', cantidad: '2 unidades' },
+        { item: 'Huevos', cantidad: '3 unidades' },
+        { item: 'Queso fresco en láminas', cantidad: '4 láminas' },
+        { item: 'Tomate en rodajas', cantidad: '1 unidad' },
+        { item: 'Lechuga', cantidad: '2 hojas' },
+        { item: 'Mantequilla', cantidad: '1 cucharada' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Parte los panes por la mitad y tuéstalos ligeramente.',
+        'En un bowl, bate los huevos con sal y pimienta.',
+        'Calienta una sartén con mantequilla y prepara los huevos revueltos.',
+        'Cuando los huevos estén casi listos, añade las láminas de queso para que se derritan.',
+        'Arma los sándwiches: pan, lechuga, tomate, huevo con queso y tapa.',
+        'Sirve inmediatamente mientras está caliente.',
+      ],
+    },
+    {
+      id: 'jugo-papaya',
+      nombre: 'Jugo de papaya y avena',
+      categoria: 'Desayuno',
+      tiempoMinutos: 10,
+      porciones: 2,
+      calorias: 180,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Sin lactosa'],
+      ingredientes: [
+        { item: 'Papaya picada', cantidad: '2 tazas' },
+        { item: 'Leche o leche vegetal', cantidad: '1 taza' },
+        { item: 'Avena en hojuelas', cantidad: '2 cucharadas' },
+        { item: 'Miel', cantidad: '1 cucharada' },
+        { item: 'Hielo', cantidad: 'Al gusto' },
+        { item: 'Canela en polvo', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'Coloca la papaya, la leche, la avena y la miel en la licuadora.',
+        'Licúa por 1 minuto hasta obtener una mezcla suave y cremosa.',
+        'Añade hielo si prefieres una bebida más fría y licúa unos segundos más.',
+        'Sirve inmediatamente en vasos altos.',
+        'Decora con una pizca de canela en polvo sobre la espuma.',
+      ],
+    },
+    {
+      id: 'pan-pollo',
+      nombre: 'Pan con pollo',
+      categoria: 'Desayuno',
+      tiempoMinutos: 15,
+      porciones: 2,
+      calorias: 380,
+      etiquetas: ['Rápido', 'Menos de 30 min', 'Alto en proteína'],
+      ingredientes: [
+        { item: 'Pan francés', cantidad: '2 unidades' },
+        { item: 'Pechuga de pollo cocida y deshilachada', cantidad: '200 g' },
+        { item: 'Mayonesa', cantidad: '2 cucharadas' },
+        { item: 'Ají amarillo molido', cantidad: '1 cucharadita' },
+        { item: 'Lechuga', cantidad: '2 hojas' },
+        { item: 'Tomate en rodajas', cantidad: '1/2 unidad' },
+        { item: 'Sal y pimienta', cantidad: 'Al gusto' },
+      ],
+      pasos: [
+        'Mezcla el pollo deshilachado con la mayonesa, el ají amarillo, sal y pimienta.',
+        'Parte los panes por la mitad a lo largo.',
+        'Coloca una hoja de lechuga en la base de cada pan.',
+        'Distribuye la mezcla de pollo sobre la lechuga.',
+        'Añade rodajas de tomate encima.',
+        'Tapa con la otra mitad del pan y sirve inmediatamente.',
+      ],
+    },
+    // ===============================================================
+    // RECETA ESPECIAL: Leches asadas (con recomendación Musomía)
+    // ===============================================================
+    {
+      id: 'leches-asadas',
+      nombre: 'Leches asadas',
+      categoria: 'Postre',
+      tiempoMinutos: 90,
+      porciones: 8,
+      calorias: 330,
+      etiquetas: ['Postre', 'Económico'],
+      ingredientes: [
+        { item: 'Mezcla para leches asadas Musomía', cantidad: '1 paquete' },
+        { item: 'Leche entera', cantidad: '1 litro' },
+        { item: 'Leche condensada', cantidad: '1 lata' },
+        { item: 'Leche evaporada', cantidad: '1 lata' },
+        { item: 'Huevos', cantidad: '6 unidades' },
+        { item: 'Esencia de vainilla', cantidad: '1 cucharadita' },
+        { item: 'Azúcar para el caramelo', cantidad: '1/2 taza' },
+        { item: 'Canela en polvo', cantidad: 'Para decorar' },
+      ],
+      pasos: [
+        'Prepara el caramelo: derrite el azúcar en una olla hasta obtener un caramelo dorado oscuro.',
+        'Vierte el caramelo en el fondo y paredes de un molde de hueco o pyrex rectangular.',
+        'En un bowl, bate los huevos con la leche condensada, la leche evaporada y la vainilla.',
+        'Agrega la leche entera y la mezcla para leches asadas Musomía. Mezcla hasta disolver completamente.',
+        'Cuela la mezcla para que quede suave y sin grumos.',
+        'Vierte la mezcla en el molde acaramelado.',
+        'Hornea al baño maría a 180°C por 60-70 minutos hasta que cuaje.',
+        'Deja enfriar a temperatura ambiente y luego refrigera por 2 horas.',
+        'Desmolda con cuidado y decora con canela en polvo.',
+      ],
+      // Esta receta tiene una recomendación especial de Musomía que se muestra en modo cocina
+      recomendacionMusomia: true,
+    },
+  ];
+
+  // ===============================================================
+  // 3. ESTADO GLOBAL DE LA APLICACIÓN
+  // ===============================================================
+  const State = {
+    vistaActual: 'menu',
+    menuSemanal: null,      // { dia: { desayuno: recipeId, almuerzo: recipeId, ... } }
+    favoritos: [],           // [recipeId, ...]
+    excluidos: [],           // [recipeId, ...]
+    shoppingList: {},        // { ingredientKey: { checked, cantidad, item } }
+    prefs: {
+      pomodoroMode: 'work',
+      noiseVolume: 30,
+      noiseType: 'white',
+    },
+    currentRecipeId: null,   // Para modo cocina
+    currentCookingSlot: null, // { dia, tipo } para el modal de cambio
+    cookingServings: 4,      // Porciones actuales en modo cocina (editables)
+    originalServings: 4,     // Porciones originales de la receta en cocina
+    checkedIngredients: {},  // { ingredientIndex: true } ingredientes marcados en cocina
+    checkedSteps: {},        // { stepIndex: true } pasos marcados en cocina
+    deferredPrompt: null,    // Evento beforeinstallprompt para PWA
+    // Tipos de comida seleccionados para planificar
+    mealTypes: ['almuerzo', 'cena'], // Por defecto: almuerzo y cena
+  };
+
+  // Días de la semana para el menú
+  const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+  // Todos los tipos de comida posibles (orden de visualización)
+  const TODOS_TIPOS = [
+    { id: 'desayuno', label: 'Desayuno', icon: 'sunrise' },
+    { id: 'almuerzo', label: 'Almuerzo', icon: 'sun' },
+    { id: 'cena', label: 'Cena', icon: 'moon' },
+    { id: 'postre', label: 'Postre', icon: 'ice-cream-cone' },
+  ];
+
+  // Devuelve los tipos de comida activos según la selección del usuario
+  function getTiposActivos() {
+    return TODOS_TIPOS.filter(t => State.mealTypes.includes(t.id));
+  }
+
+  // ===============================================================
+  // 4. PERSISTENCIA — Cargar y guardar en IndexedDB
+  // ===============================================================
+  const Store = {
+    async cargarTodo() {
+      State.menuSemanal = await localforage.getItem('menu_semanal');
+      State.favoritos = (await localforage.getItem('favoritos')) || [];
+      State.excluidos = (await localforage.getItem('excluidos')) || [];
+      State.shoppingList = (await localforage.getItem('shopping_list')) || {};
+      const prefs = await localforage.getItem('prefs');
+      if (prefs) State.prefs = { ...State.prefs, ...prefs };
+    },
+    async guardarMenu() { await localforage.setItem('menu_semanal', State.menuSemanal); },
+    async guardarFavoritos() { await localforage.setItem('favoritos', State.favoritos); },
+    async guardarExcluidos() { await localforage.setItem('excluidos', State.excluidos); },
+    async guardarShopping() { await localforage.setItem('shopping_list', State.shoppingList); },
+    async guardarPrefs() { await localforage.setItem('prefs', State.prefs); },
+  };
+
+  // ===============================================================
+  // 5. UTILIDADES DE UI — Toast y renderizado de iconos
+  // ===============================================================
+  const UI = {
+    toast(mensaje, tipo = 'info') {
+      const container = document.getElementById('toast-container');
+      const div = document.createElement('div');
+      const colores = {
+        info: 'bg-carbon text-white',
+        success: 'bg-albahaca text-white',
+        warning: 'bg-fogon text-white',
+      };
+      const iconos = {
+        info: 'info',
+        success: 'check-circle',
+        warning: 'alert-triangle',
+      };
+      div.className = `${colores[tipo]} px-4 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 pointer-events-auto`;
+      div.innerHTML = `<i data-lucide="${iconos[tipo]}" class="w-4 h-4"></i><span>${mensaje}</span>`;
+      container.appendChild(div);
+      lucide.createIcons();
+      setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.3s';
+        setTimeout(() => div.remove(), 300);
+      }, 3000);
+    },
+
+    refreshIcons() {
+      // Ejecutar lucide.createIcons() después de cualquier render dinámico
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    },
+
+    getRecipe(id) {
+      return RECETAS.find(r => r.id === id);
+    },
+
+    // Normaliza un ingrediente para usarlo como clave única en la lista de compras
+    ingredientKey(texto) {
+      return texto.toLowerCase().trim().replace(/\s+/g, ' ');
+    },
+
+    // Escala una cantidad de ingrediente proporcionalmente al cambio de porciones
+    // Ej: "500 g" con 4 pers → 6 pers = "750 g"
+    scaleQuantity(cantidadOriginal, porcionesOriginales, porcionesNuevas) {
+      if (porcionesNuevas === porcionesOriginales) return cantidadOriginal;
+      const ratio = porcionesNuevas / porcionesOriginales;
+      // Intentar extraer la parte numérica al inicio de la cadena
+      const match = cantidadOriginal.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+      if (!match) return cantidadOriginal; // Sin número (ej: "Al gusto", "Para decorar")
+      const numStr = match[1].replace(',', '.');
+      const unit = match[2];
+      const originalNum = parseFloat(numStr);
+      if (isNaN(originalNum)) return cantidadOriginal;
+      const scaledNum = originalNum * ratio;
+      // Formatear con precisión razonable
+      let formatted;
+      if (scaledNum >= 100) formatted = Math.round(scaledNum);
+      else if (scaledNum >= 10) formatted = Math.round(scaledNum * 10) / 10;
+      else formatted = Math.round(scaledNum * 100) / 100;
+      // Eliminar ceros decimales innecesarios
+      formatted = formatted.toString().replace(/\.0$/, '');
+      return formatted + (unit ? ' ' + unit : '');
+    },
+  };
+
+  // ===============================================================
+  // 5b. MÓDULO DE PUBLICIDAD — Anuncios Kuzz, gastrik y Musomía
+  // ===============================================================
+  const Ads = {
+    // Números de WhatsApp por anunciante
+    whatsapp: {
+      kuzz: '51933844790',
+      gastrik: '51933844790',
+      musomia: '51936293417',
+    },
+
+    // Mensajes predefinidos para cada tipo de anuncio
+    mensajes: {
+      kuzz: 'Hola, me gustaría pedir el Kuzz de hierba Luisa y maracuyá',
+      gastrik_recetas: 'Hola, me gustaría enviar mis recetas para Gastrik',
+      gastrik_donar: 'Hola, me gustaría hacer una donación para Gastrik',
+      gastrik_compartir: 'Te recomiendo Gastrik, una app para planificar tu menú semanal y cocinar paso a paso',
+      musomia: 'Hola, me gustaría comprar la mezcla para leches asadas Musomía',
+    },
+
+    // Pool de TODOS los anuncios disponibles (10 total)
+    pool: [
+      { tipo: 'kuzz', numero: 1 },
+      { tipo: 'kuzz', numero: 2 },
+      { tipo: 'kuzz', numero: 3 },
+      { tipo: 'kuzz', numero: 4 },
+      { tipo: 'gastrik', numero: 1 },
+      { tipo: 'gastrik', numero: 2 },
+      { tipo: 'gastrik', numero: 3 },
+      { tipo: 'musomia', numero: 1 },
+      { tipo: 'musomia', numero: 2 },
+      { tipo: 'musomia', numero: 3 },
+    ],
+
+    // Anuncios mostrados recientemente (para evitar repetir al cambiar de tab)
+    recentlyShown: [],
+    // Último anuncio seleccionado globalmente (evita adyacentes iguales)
+    lastPicked: null,
+    // Último anuncio por posición (garantiza que al volver a una vista, el ad sea diferente)
+    lastByPosition: {},
+
+    // Selecciona un anuncio al azar del pool
+    // positionKey: identificador de la posición (ej: 'menu-inline', 'explore-sidebar')
+    // Garantiza que sea DIFERENTE al último en esa posición Y al último global
+    pickAd(positionKey) {
+      const exclude = new Set(this.recentlyShown);
+      if (this.lastPicked) exclude.add(this.lastPicked);
+      if (positionKey && this.lastByPosition[positionKey]) {
+        exclude.add(this.lastByPosition[positionKey]);
+      }
+
+      let disponibles = this.pool.filter(ad =>
+        !exclude.has(`${ad.tipo}-${ad.numero}`)
+      );
+      // Si no hay disponibles, al menos excluir el de esta posición y el último global
+      if (disponibles.length === 0 && positionKey) {
+        const posAd = this.lastByPosition[positionKey];
+        disponibles = this.pool.filter(ad =>
+          `${ad.tipo}-${ad.numero}` !== posAd && `${ad.tipo}-${ad.numero}` !== this.lastPicked
+        );
+      }
+      // Si todavía no hay, excluir solo el último global
+      if (disponibles.length === 0) {
+        disponibles = this.pool.filter(ad =>
+          `${ad.tipo}-${ad.numero}` !== this.lastPicked
+        );
+      }
+      if (disponibles.length === 0) disponibles = this.pool;
+
+      const elegido = disponibles[Math.floor(Math.random() * disponibles.length)];
+      const key = `${elegido.tipo}-${elegido.numero}`;
+      this.recentlyShown.push(key);
+      if (this.recentlyShown.length > 7) this.recentlyShown.shift();
+      this.lastPicked = key;
+      if (positionKey) this.lastByPosition[positionKey] = key;
+      return elegido;
+    },
+
+    // Genera la URL de WhatsApp según el tipo de anuncio
+    url(tipo) {
+      const msg = encodeURIComponent(this.mensajes[tipo]);
+      if (tipo === 'gastrik_compartir') {
+        return `https://wa.me/?text=${msg}`;
+      }
+      let numero;
+      if (tipo === 'kuzz') numero = this.whatsapp.kuzz;
+      else if (tipo === 'musomia') numero = this.whatsapp.musomia;
+      else numero = this.whatsapp.gastrik;
+      return `https://wa.me/${numero}?text=${msg}`;
+    },
+
+    // Genera el HTML de un anuncio banner
+    // ad: { tipo, numero } del pool
+    // formato: '16:9' o '3:4'
+    render(ad, formato) {
+      const { tipo, numero } = ad;
+      let carpeta, msgTipo;
+      if (tipo === 'kuzz') {
+        carpeta = 'ad/kuzz';
+        msgTipo = 'kuzz';
+      } else if (tipo === 'musomia') {
+        carpeta = 'ad/musomia';
+        msgTipo = 'musomia';
+      } else {
+        carpeta = 'brand';
+        msgTipo = numero === 1 ? 'gastrik_recetas' : numero === 2 ? 'gastrik_donar' : 'gastrik_compartir';
+      }
+      const sufijo = formato === '16:9' ? 'b' : '';
+      const imgPath = `${carpeta}/${numero}${sufijo}.jpg`;
+      const url = this.url(msgTipo);
+
+      const aspectClass = formato === '16:9' ? 'aspect-video' : 'aspect-[3/4]';
+      const fallbackIcon = tipo === 'kuzz' ? 'cup-soda' :
+                           tipo === 'musomia' ? 'cake-slice' :
+                           (numero === 1 ? 'utensils' : numero === 2 ? 'heart' : 'share-2');
+      const fallbackTitle = tipo === 'kuzz' ? 'Kuzz' :
+                            tipo === 'musomia' ? 'Musomía' : 'gastrik';
+      const fallbackDesc = tipo === 'kuzz'
+        ? 'Bebida de hierba Luisa y maracuyá'
+        : tipo === 'musomia'
+        ? 'Mezcla para leches asadas'
+        : (numero === 1 ? 'Envía tus recetas a la comunidad' : numero === 2 ? 'Apoya el proyecto con una donación' : 'Comparte gastrik con tus amigos');
+
+      return `
+        <div class="flex items-center gap-1.5 mb-2">
+          <i data-lucide="megaphone" class="w-3.5 h-3.5 text-carbon-400"></i>
+          <span class="ad-label">Recomendado</span>
+        </div>
+        <a href="${url}" target="_blank" rel="noopener" data-ad-slot="${formato}"
+           class="ad-container block w-full ${aspectClass} rounded-2xl overflow-hidden border border-lino-border relative group bg-gradient-to-br from-fogon-50 to-lino">
+          <img src="${imgPath}" alt="${fallbackTitle}" class="ad-img"
+               onerror="this.parentElement.classList.add('ad-container-no-img');" />
+          <div class="ad-fallback absolute inset-0 flex-col items-center justify-center text-center p-6 bg-gradient-to-br from-fogon-50 to-lino">
+            <div class="w-14 h-14 rounded-full bg-fogon/10 flex items-center justify-center mb-3">
+              <i data-lucide="${fallbackIcon}" class="w-7 h-7 text-fogon"></i>
+            </div>
+            <p class="text-lg font-extrabold text-carbon">${fallbackTitle}</p>
+            <p class="text-xs text-carbon-500 mt-1">${fallbackDesc}</p>
+            <div class="mt-3 px-4 py-1.5 rounded-lg bg-fogon text-white text-xs font-bold flex items-center gap-1.5">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>Tocar para ver
+            </div>
+          </div>
+        </a>
+      `;
+    },
+
+    // Renderiza un anuncio inline (para insertar dentro de grids o listas)
+    // formato: '16:9' o '3:4'
+    // positionKey: identificador único de la posición para rotación
+    renderInline(formato, positionKey) {
+      const ad = this.pickAd(positionKey);
+      return this.render(ad, formato);
+    },
+
+    // Recomendación de Kuzz dentro de una receta (tarjeta inline, no banner)
+    renderKuzzRecommendation() {
+      const url = this.url('kuzz');
+      return `
+        <div class="bg-gradient-to-r from-fogon-50 to-lino border border-fogon-200 rounded-2xl p-4 flex items-center gap-4">
+          <div class="ad-container w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-fogon-100 flex items-center justify-center relative">
+            <img src="ad/kuzz/4.jpg" alt="Kuzz" class="ad-img"
+                 onerror="this.parentElement.classList.add('ad-container-no-img');" />
+            <i data-lucide="cup-soda" class="w-8 h-8 text-fogon ad-fallback-icon absolute"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-bold text-fogon uppercase tracking-wide">Recomendado</p>
+            <p class="text-sm font-extrabold text-carbon">Acompaña con Kuzz</p>
+            <p class="text-xs text-carbon-500 mt-0.5">Bebida de hierba Luisa y maracuyá</p>
+          </div>
+          <a href="${url}" target="_blank" rel="noopener" class="flex-shrink-0 px-3 py-2 rounded-lg bg-fogon text-white text-xs font-bold hover:bg-fogon-600 transition flex items-center gap-1.5">
+            <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>Pedir
+          </a>
+        </div>
+      `;
+    },
+
+    // Recomendación de Musomía dentro de la receta de leches asadas
+    renderMusomiaRecommendation() {
+      const url = this.url('musomia');
+      return `
+        <div class="bg-gradient-to-r from-albahaca-50 to-lino border border-albahaca-200 rounded-2xl p-4 flex items-center gap-4">
+          <div class="ad-container w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-albahaca-100 flex items-center justify-center relative">
+            <img src="ad/musomia/1.jpg" alt="Musomía" class="ad-img"
+                 onerror="this.parentElement.classList.add('ad-container-no-img');" />
+            <i data-lucide="cake-slice" class="w-8 h-8 text-albahaca ad-fallback-icon absolute"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-bold text-albahaca uppercase tracking-wide">Ingrediente recomendado</p>
+            <p class="text-sm font-extrabold text-carbon">Mezcla para leches asadas Musomía</p>
+            <p class="text-xs text-carbon-500 mt-0.5">Resultado perfecto y ahorra tiempo en la cocina</p>
+          </div>
+          <a href="${url}" target="_blank" rel="noopener" class="flex-shrink-0 px-3 py-2 rounded-lg bg-albahaca text-white text-xs font-bold hover:bg-albahaca-700 transition flex items-center gap-1.5">
+            <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>Pedir
+          </a>
+        </div>
+      `;
+    },
+
+    // Renderiza anuncios en contenedores fijos de una vista
+    // Cada vez que se llama, selecciona anuncios nuevos al azar (rotación)
+    renderForView(vista) {
+      // Definir contenedores por vista con su posición y formato
+      const contenedores = {
+        menu: [
+          { id: 'ad-menu-sidebar', formato: '3:4', posKey: 'menu-sidebar' },
+        ],
+        explore: [
+          { id: 'ad-explore-sidebar', formato: '3:4', posKey: 'explore-sidebar' },
+        ],
+        shopping: [
+          { id: 'ad-shopping-sidebar', formato: '3:4', posKey: 'shopping-sidebar' },
+        ],
+        cooking: [
+          { id: 'ad-cooking-middle', formato: '16:9', posKey: 'cooking-middle' },
+        ],
+      };
+
+      const ads = contenedores[vista] || [];
+      ads.forEach(cfg => {
+        const container = document.getElementById(cfg.id);
+        if (container) {
+          const ad = this.pickAd(cfg.posKey);
+          container.innerHTML = this.render(ad, cfg.formato);
+        }
+      });
+      UI.refreshIcons();
+    },
+  };
+
+  // ===============================================================
+  // 6. GENERADOR DE MENÚ SEMANAL
+  // ===============================================================
+  const MenuGen = {
+    // Genera un menú completo de Lunes a Domingo (almuerzo + cena)
+    generar() {
+      const recetasDisponibles = RECETAS.filter(r => !State.excluidos.includes(r.id));
+      if (recetasDisponibles.length < 4) {
+        UI.toast('Necesitas al menos 4 recetas no excluidas para generar un menú.', 'warning');
+        return;
+      }
+
+      const menu = {};
+      let ultimaReceta = null;
+
+      DIAS_SEMANA.forEach(dia => {
+        menu[dia] = {};
+        getTiposActivos().forEach(tipoObj => {
+          const tipo = tipoObj.id;
+          // Filtrar recetas adecuadas para el tipo de comida
+          let candidatas = recetasDisponibles.filter(r => {
+            if (r.id === ultimaReceta) return false; // Evitar repetir seguido
+            if (tipo === 'desayuno') {
+              return ['Desayuno', 'Rápido', 'Ligero'].includes(r.categoria);
+            } else if (tipo === 'almuerzo') {
+              return ['Almuerzo', 'Criollo'].includes(r.categoria);
+            } else if (tipo === 'cena') {
+              return ['Cena', 'Ligero', 'Rápido'].includes(r.categoria);
+            } else if (tipo === 'postre') {
+              return r.categoria === 'Postre';
+            }
+            return true;
+          });
+          // Si no hay suficientes candidatas, usar todas las disponibles
+          if (candidatas.length === 0) {
+            candidatas = recetasDisponibles.filter(r => r.id !== ultimaReceta);
+          }
+          if (candidatas.length === 0) candidatas = recetasDisponibles;
+
+          const elegida = candidatas[Math.floor(Math.random() * candidatas.length)];
+          menu[dia][tipo] = elegida.id;
+          ultimaReceta = elegida.id;
+        });
+      });
+
+      State.menuSemanal = menu;
+      Store.guardarMenu();
+      // Regenerar la lista de compras al cambiar el menú
+      ShoppingList.generarDesdeMenu();
+      Render.menuSemanal();
+      UI.toast('Menú semanal generado correctamente.', 'success');
+    },
+
+    // Cambia un plato individual por otro al azar
+    cambiarPlato(dia, tipo) {
+      const recetasDisponibles = RECETAS.filter(r => !State.excluidos.includes(r.id));
+      const actual = State.menuSemanal?.[dia]?.[tipo];
+      let candidatas = recetasDisponibles.filter(r => {
+        if (r.id === actual) return false;
+        if (tipo === 'desayuno') {
+          return ['Desayuno', 'Rápido', 'Ligero'].includes(r.categoria);
+        } else if (tipo === 'almuerzo') {
+          return ['Almuerzo', 'Criollo'].includes(r.categoria);
+        } else if (tipo === 'cena') {
+          return ['Cena', 'Ligero', 'Rápido'].includes(r.categoria);
+        } else if (tipo === 'postre') {
+          return r.categoria === 'Postre';
+        }
+        return true;
+      });
+      if (candidatas.length === 0) candidatas = recetasDisponibles.filter(r => r.id !== actual);
+      if (candidatas.length === 0) {
+        UI.toast('No hay recetas disponibles para cambiar.', 'warning');
+        return;
+      }
+      const elegida = candidatas[Math.floor(Math.random() * candidatas.length)];
+      State.menuSemanal[dia][tipo] = elegida.id;
+      Store.guardarMenu();
+      ShoppingList.generarDesdeMenu();
+      Render.menuSemanal();
+      UI.toast('Plato cambiado: ' + elegida.nombre, 'success');
+    },
+
+    // Asigna una receta específica a un slot (selección manual)
+    asignarPlato(dia, tipo, recipeId) {
+      if (!State.menuSemanal) State.menuSemanal = {};
+      if (!State.menuSemanal[dia]) State.menuSemanal[dia] = {};
+      State.menuSemanal[dia][tipo] = recipeId;
+      Store.guardarMenu();
+      ShoppingList.generarDesdeMenu();
+      Render.menuSemanal();
+      UI.toast('Plato asignado correctamente.', 'success');
+    },
+  };
+
+  // ===============================================================
+  // 7. LISTA DE COMPRAS
+  // ===============================================================
+  const ShoppingList = {
+    // Agrupa los ingredientes de toda la semana en un objeto consolidado
+    generarDesdeMenu() {
+      if (!State.menuSemanal) {
+        State.shoppingList = {};
+        Store.guardarShopping();
+        return;
+      }
+
+      const consolidado = {};
+      DIAS_SEMANA.forEach(dia => {
+        if (!State.menuSemanal[dia]) return;
+        // Iterar sobre todos los tipos que existen en el menu (no solo los activos)
+        // para que funcione aunque el usuario cambie los tipos después
+        Object.keys(State.menuSemanal[dia]).forEach(tipo => {
+          const recipeId = State.menuSemanal[dia][tipo];
+          if (!recipeId) return;
+          const receta = UI.getRecipe(recipeId);
+          if (!receta) return;
+          receta.ingredientes.forEach(ing => {
+            const key = UI.ingredientKey(ing.item);
+            if (consolidado[key]) {
+              consolidado[key].cantidad += ' + ' + ing.cantidad;
+            } else {
+              consolidado[key] = {
+                item: ing.item,
+                cantidad: ing.cantidad,
+                checked: State.shoppingList[key]?.checked || false,
+              };
+            }
+          });
+        });
+      });
+
+      State.shoppingList = consolidado;
+      Store.guardarShopping();
+    },
+
+    toggle(key) {
+      if (State.shoppingList[key]) {
+        State.shoppingList[key].checked = !State.shoppingList[key].checked;
+        Store.guardarShopping();
+        Render.shoppingList();
+      }
+    },
+
+    reiniciar() {
+      Object.keys(State.shoppingList).forEach(key => {
+        State.shoppingList[key].checked = false;
+      });
+      Store.guardarShopping();
+      Render.shoppingList();
+      UI.toast('Lista de compras reiniciada.', 'info');
+    },
+  };
+
+  // ===============================================================
+  // 8. TEMPORIZADOR POMODORO ESTÁNDAR
+  // ===============================================================
+  const Pomodoro = {
+    modos: {
+      work: { segundos: 25 * 60, etiqueta: 'MODO COCINA' },
+      short: { segundos: 5 * 60, etiqueta: 'DESCANSO CORTO' },
+      long: { segundos: 15 * 60, etiqueta: 'DESCANSO LARGO' },
+    },
+    modoActual: 'work',
+    tiempoTotal: 25 * 60,
+    tiempoRestante: 25 * 60,
+    corriendo: false,
+    intervalo: null,
+    ciclos: 0,
+    audioCtx: null,
+
+    init() {
+      // Restaurar preferencias guardadas
+      if (State.prefs.pomodoroMode && this.modos[State.prefs.pomodoroMode]) {
+        this.setModo(State.prefs.pomodoroMode);
+      }
+      this.render();
+
+      // Eventos de botones
+      document.getElementById('timer-start').addEventListener('click', () => this.iniciar());
+      document.getElementById('timer-pause').addEventListener('click', () => this.pausar());
+      document.getElementById('timer-reset').addEventListener('click', () => this.reiniciar());
+      document.getElementById('timer-apply-custom').addEventListener('click', () => {
+        const min = parseInt(document.getElementById('timer-custom-minutes').value);
+        if (min && min > 0 && min <= 90) {
+          this.setTiempoCustom(min);
+        }
+      });
+
+      // Selector de modo
+      document.querySelectorAll('.pomodoro-mode').forEach(btn => {
+        btn.addEventListener('click', () => this.setModo(btn.dataset.mode));
+      });
+    },
+
+    setModo(modo) {
+      if (!this.modos[modo]) return;
+      this.modoActual = modo;
+      this.tiempoTotal = this.modos[modo].segundos;
+      this.tiempoRestante = this.tiempoTotal;
+      this.pausar();
+      State.prefs.pomodoroMode = modo;
+      Store.guardarPrefs();
+      this.actualizarBotonesModo();
+      this.render();
+    },
+
+    setTiempoCustom(minutos) {
+      this.tiempoTotal = minutos * 60;
+      this.tiempoRestante = this.tiempoTotal;
+      this.pausar();
+      this.modoActual = 'custom';
+      this.actualizarBotonesModo();
+      this.render();
+    },
+
+    actualizarBotonesModo() {
+      document.querySelectorAll('.pomodoro-mode').forEach(btn => {
+        if (btn.dataset.mode === this.modoActual) {
+          btn.className = 'pomodoro-mode px-2 py-2 rounded-lg text-xs font-bold bg-albahaca text-white';
+        } else {
+          btn.className = 'pomodoro-mode px-2 py-2 rounded-lg text-xs font-bold bg-white border border-lino-border text-carbon hover:border-albahaca transition';
+        }
+      });
+      document.getElementById('timer-label').textContent = this.modos[this.modoActual]?.etiqueta || 'TIEMPO PERSONALIZADO';
+    },
+
+    iniciar() {
+      if (this.corriendo) return;
+      this.corriendo = true;
+      document.getElementById('floating-dot').classList.remove('hidden');
+      this.intervalo = setInterval(() => {
+        this.tiempoRestante--;
+        if (this.tiempoRestante <= 0) {
+          this.completar();
+        }
+        this.render();
+      }, 1000);
+    },
+
+    pausar() {
+      this.corriendo = false;
+      clearInterval(this.intervalo);
+      if (this.tiempoRestante > 0 && this.tiempoRestante < this.tiempoTotal) {
+        document.getElementById('floating-dot').classList.remove('hidden');
+      } else if (this.tiempoRestante === this.tiempoTotal) {
+        document.getElementById('floating-dot').classList.add('hidden');
+      }
+    },
+
+    reiniciar() {
+      this.pausar();
+      this.tiempoRestante = this.tiempoTotal;
+      document.getElementById('floating-dot').classList.add('hidden');
+      this.render();
+    },
+
+    completar() {
+      this.pausar();
+      this.tiempoRestante = 0;
+      this.tocarBeep();
+      if (this.modoActual === 'work') {
+        this.ciclos++;
+        document.getElementById('timer-cycles').textContent = this.ciclos;
+        UI.toast('Pomodoro completado. Tómate un descanso.', 'success');
+      } else {
+        UI.toast('Descanso terminado. Volvamos a cocinar.', 'info');
+      }
+      this.tiempoRestante = this.tiempoTotal;
+      this.render();
+    },
+
+    // Beep sintetizado con Web Audio API (sonido agradable)
+    tocarBeep() {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = this.audioCtx;
+      // Tres beeps ascendentes
+      const frecuencias = [880, 1108, 1318];
+      frecuencias.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const startTime = ctx.currentTime + i * 0.3;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+        osc.start(startTime);
+        osc.stop(startTime + 0.3);
+      });
+    },
+
+    render() {
+      const minutos = Math.floor(this.tiempoRestante / 60);
+      const segundos = this.tiempoRestante % 60;
+      const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+      document.getElementById('timer-display').textContent = display;
+
+      // Actualizar círculo de progreso SVG
+      const circunferencia = 2 * Math.PI * 88; // r=88
+      const progreso = this.tiempoRestante / this.tiempoTotal;
+      const offset = circunferencia * (1 - progreso);
+      const progressCircle = document.getElementById('timer-progress');
+      progressCircle.setAttribute('stroke-dasharray', circunferencia);
+      progressCircle.setAttribute('stroke-dashoffset', offset);
+    },
+  };
+
+  // ===============================================================
+  // 9. GENERADOR DE RUIDO BLANCO / SONIDO AMBIENTE (Web Audio API)
+  // ===============================================================
+  const NoiseGen = {
+    audioCtx: null,
+    gainNode: null,
+    source: null,
+    tipo: 'white',
+    isPlaying: false,
+    volumen: 0.3,
+
+    init() {
+      // Restaurar volumen guardado
+      this.volumen = State.prefs.noiseVolume / 100;
+      document.getElementById('noise-volume').value = State.prefs.noiseVolume;
+      this.tipo = State.prefs.noiseType || 'white';
+      this.actualizarSeleccion();
+
+      document.getElementById('noise-play').addEventListener('click', () => this.toggle());
+      document.getElementById('noise-volume').addEventListener('input', (e) => {
+        this.setVolumen(e.target.value / 100);
+        State.prefs.noiseVolume = parseInt(e.target.value);
+        Store.guardarPrefs();
+      });
+      document.querySelectorAll('.noise-type').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.tipo = btn.dataset.noise;
+          State.prefs.noiseType = this.tipo;
+          Store.guardarPrefs();
+          this.actualizarSeleccion();
+          if (this.isPlaying) {
+            this.stop();
+            this.play();
+          }
+        });
+      });
+    },
+
+    actualizarSeleccion() {
+      document.querySelectorAll('.noise-type').forEach(btn => {
+        const indicator = btn.querySelector('.noise-indicator');
+        const isSelected = btn.dataset.noise === this.tipo;
+        if (isSelected) {
+          btn.classList.add('border-fogon', 'bg-fogon/5');
+        } else {
+          btn.classList.remove('border-fogon', 'bg-fogon/5');
+        }
+        // Reemplazar el elemento completo para que Lucide pueda re-procesarlo
+        // (Lucide convierte <i> en <svg>, por lo que setAttribute no funciona)
+        const iconName = isSelected ? 'check-circle-2' : 'circle';
+        const colorClass = isSelected ? 'text-fogon' : 'text-carbon-300';
+        indicator.outerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 ${colorClass} noise-indicator"></i>`;
+      });
+      UI.refreshIcons();
+    },
+
+    initAudio() {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.gainNode = this.audioCtx.createGain();
+        this.gainNode.gain.value = this.volumen;
+        this.gainNode.connect(this.audioCtx.destination);
+      }
+      // Reanudar el contexto si está suspendido (política de autoplay)
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume();
+      }
+    },
+
+    // Genera un buffer de 2 segundos con el tipo de ruido seleccionado
+    generarBuffer(tipo) {
+      const sampleRate = this.audioCtx.sampleRate;
+      const bufferSize = sampleRate * 2;
+      const buffer = this.audioCtx.createBuffer(1, bufferSize, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      if (tipo === 'white') {
+        // Ruido Blanco: distribución uniforme — enfoque
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+      } else if (tipo === 'pink') {
+        // Ruido Rosa: algoritmo de Paul Kellet — lluvia suave
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+          b6 = white * 0.115926;
+        }
+      } else if (tipo === 'brown') {
+        // Ruido Marrón: ruido blanco integrado — murmullo profundo
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          data[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = data[i];
+          data[i] *= 3.5;
+        }
+      }
+      return buffer;
+    },
+
+    play() {
+      this.initAudio();
+      this.stop();
+      const buffer = this.generarBuffer(this.tipo);
+      this.source = this.audioCtx.createBufferSource();
+      this.source.buffer = buffer;
+      this.source.loop = true;
+      this.source.connect(this.gainNode);
+      this.source.start();
+      this.isPlaying = true;
+      this.actualizarUI();
+    },
+
+    stop() {
+      if (this.source) {
+        try { this.source.stop(); } catch (e) { /* ya detenido */ }
+        this.source = null;
+      }
+      this.isPlaying = false;
+      this.actualizarUI();
+    },
+
+    toggle() {
+      if (this.isPlaying) {
+        this.stop();
+      } else {
+        this.play();
+      }
+    },
+
+    setVolumen(v) {
+      this.volumen = v;
+      if (this.gainNode) this.gainNode.gain.value = v;
+    },
+
+    actualizarUI() {
+      const btn = document.getElementById('noise-play');
+      const visualizer = document.getElementById('noise-visualizer');
+      // Reemplazar el icono del botón (Lucide convierte <i> en <svg>)
+      const iconName = this.isPlaying ? 'pause' : 'play';
+      btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
+      if (this.isPlaying) {
+        visualizer.classList.remove('opacity-30');
+        visualizer.classList.add('opacity-100');
+        document.getElementById('floating-dot').classList.remove('hidden');
+      } else {
+        visualizer.classList.add('opacity-30');
+        visualizer.classList.remove('opacity-100');
+        // Solo ocultar el dot si el pomodoro tampoco está corriendo
+        if (!Pomodoro.corriendo && Pomodoro.tiempoRestante === Pomodoro.tiempoTotal) {
+          document.getElementById('floating-dot').classList.add('hidden');
+        }
+      }
+      UI.refreshIcons();
+    },
+  };
+
+  // ===============================================================
+  // 10. RENDERIZADO DE VISTAS
+  // ===============================================================
+  const Render = {
+    // Renderiza la cuadrícula del menú semanal
+    menuSemanal() {
+      const grid = document.getElementById('weekly-menu-grid');
+      const summary = document.getElementById('week-summary');
+      if (!State.menuSemanal) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-16 bg-white border border-lino-border rounded-2xl">
+            <div class="w-16 h-16 rounded-full bg-lino mx-auto flex items-center justify-center mb-4">
+              <i data-lucide="calendar-x" class="w-8 h-8 text-carbon-400"></i>
+            </div>
+            <h3 class="text-lg font-bold text-carbon">No hay menú generado</h3>
+            <p class="text-carbon-500 text-sm mt-1 mb-4">Genera tu primera semana de comidas con un clic.</p>
+            <button onclick="MenuGen.generar()" class="px-5 py-2.5 rounded-xl bg-albahaca text-white font-semibold text-sm hover:bg-albahaca-800 transition">
+              Generar menú semanal
+            </button>
+          </div>`;
+        summary.classList.add('hidden');
+        UI.refreshIcons();
+        return;
+      }
+
+      let dayCards = [];
+      let totalRecetas = 0, totalTiempo = 0, totalCalorias = 0;
+
+      DIAS_SEMANA.forEach(dia => {
+        const menuDia = State.menuSemanal[dia] || {};
+        let cardHtml = `
+          <div class="bg-white border border-lino-border rounded-2xl p-4 card-hover">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-carbon text-white flex items-center justify-center text-xs font-extrabold">
+                ${dia.substring(0, 3).toUpperCase()}
+              </div>
+              <h3 class="font-bold text-carbon text-sm">${dia}</h3>
+            </div>`;
+
+        getTiposActivos().forEach(tipoObj => {
+          const tipo = tipoObj.id;
+          const tipoLabel = tipoObj.label;
+          const tipoIcon = tipoObj.icon;
+          const recipeId = menuDia[tipo];
+          if (recipeId) {
+            const receta = UI.getRecipe(recipeId);
+            if (receta) {
+              totalRecetas++;
+              totalTiempo += receta.tiempoMinutos;
+              totalCalorias += receta.calorias;
+              cardHtml += `
+                <div class="border border-lino-border rounded-xl p-3 mb-2 hover:border-albahaca transition group">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] font-bold text-carbon-500 flex items-center gap-1 uppercase tracking-wide">
+                      <i data-lucide="${tipoIcon}" class="w-3 h-3"></i>${tipoLabel}
+                    </span>
+                    <div class="flex gap-1">
+                      <button onclick="MenuGen.cambiarPlato('${dia}', '${tipo}')" class="w-7 h-7 rounded-lg hover:bg-lino flex items-center justify-center transition" title="Rotar aleatoriamente">
+                        <i data-lucide="shuffle" class="w-3.5 h-3.5 text-carbon-500"></i>
+                      </button>
+                      <button onclick="App.abrirBuscadorPlato('${dia}', '${tipo}')" class="w-7 h-7 rounded-lg hover:bg-lino flex items-center justify-center transition" title="Elegir manualmente">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-carbon-500"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <button onclick="App.iniciarCocina('${receta.id}')" class="text-left w-full">
+                    <p class="font-bold text-carbon text-sm leading-tight group-hover:text-albahaca transition">${receta.nombre}</p>
+                    <div class="flex items-center gap-2 mt-1.5 text-[10px] text-carbon-500">
+                      <span class="flex items-center gap-0.5"><i data-lucide="clock" class="w-3 h-3"></i>${receta.tiempoMinutos} min</span>
+                      <span class="flex items-center gap-0.5"><i data-lucide="flame" class="w-3 h-3"></i>${receta.calorias} kcal</span>
+                    </div>
+                  </button>
+                </div>`;
+            }
+          } else {
+            cardHtml += `
+              <div class="border border-dashed border-lino-border rounded-xl p-3 mb-2">
+                <span class="text-[10px] font-bold text-carbon-400 flex items-center gap-1 uppercase tracking-wide mb-1">
+                  <i data-lucide="${tipoIcon}" class="w-3 h-3"></i>${tipoLabel}
+                </span>
+                <button onclick="App.abrirBuscadorPlato('${dia}', '${tipo}')" class="text-xs text-carbon-500 hover:text-albahaca font-medium">Sin asignar — toca para elegir</button>
+              </div>`;
+          }
+        });
+
+        cardHtml += `</div>`;
+        dayCards.push(cardHtml);
+      });
+
+      // Insertar un anuncio en una posición aleatoria entre los días (no al inicio ni al final)
+      // El ad ocupa todo el ancho del grid (col-span-full)
+      const adPosition = Math.floor(Math.random() * (dayCards.length - 1)) + 1; // Entre 1 y length-1
+      const adHtml = `<div class="col-span-full my-2">${Ads.renderInline('16:9', 'menu-inline')}</div>`;
+      dayCards.splice(adPosition, 0, adHtml);
+
+      grid.innerHTML = dayCards.join('');
+
+      // Mostrar resumen si hay recetas
+      if (totalRecetas > 0) {
+        summary.classList.remove('hidden');
+        document.getElementById('summary-recipes').textContent = totalRecetas;
+        document.getElementById('summary-time').textContent = totalTiempo;
+        document.getElementById('summary-calories').textContent = Math.round(totalCalorias / totalRecetas);
+        document.getElementById('summary-ingredients').textContent = Object.keys(State.shoppingList).length;
+      } else {
+        summary.classList.add('hidden');
+      }
+
+      UI.refreshIcons();
+    },
+
+    // Renderiza la cuadrícula de recetas en Explorar
+    recetas(filtro = '', categoria = '', etiqueta = '', soloFavoritos = false, verExcluidos = false) {
+      const grid = document.getElementById('recipe-grid');
+      let recetas = RECETAS.slice();
+
+      if (filtro) {
+        const f = filtro.toLowerCase();
+        recetas = recetas.filter(r =>
+          r.nombre.toLowerCase().includes(f) ||
+          r.ingredientes.some(i => i.item.toLowerCase().includes(f))
+        );
+      }
+      if (categoria) recetas = recetas.filter(r => r.categoria === categoria);
+      if (etiqueta) recetas = recetas.filter(r => r.etiquetas.includes(etiqueta));
+      if (soloFavoritos) recetas = recetas.filter(r => State.favoritos.includes(r.id));
+      if (!verExcluidos) {
+        recetas = recetas.filter(r => !State.excluidos.includes(r.id));
+      }
+
+      if (recetas.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <div class="w-14 h-14 rounded-full bg-lino mx-auto flex items-center justify-center mb-3">
+              <i data-lucide="search-x" class="w-7 h-7 text-carbon-400"></i>
+            </div>
+            <p class="text-carbon font-bold">No se encontraron recetas</p>
+            <p class="text-carbon-500 text-sm mt-1">Prueba con otros filtros o términos de búsqueda.</p>
+          </div>`;
+        UI.refreshIcons();
+        return;
+      }
+
+      let html = '';
+      recetas.forEach((receta, index) => {
+        const esFav = State.favoritos.includes(receta.id);
+        const esExcluida = State.excluidos.includes(receta.id);
+        const categoriaColor = {
+          'Almuerzo': 'bg-albahaca-50 text-albahaca',
+          'Cena': 'bg-carbon-100 text-carbon-700',
+          'Desayuno': 'bg-fogon-100 text-fogon-700',
+          'Ligero': 'bg-fogon-50 text-fogon',
+          'Criollo': 'bg-albahaca-100 text-albahaca-800',
+          'Rápido': 'bg-fogon-100 text-fogon-700',
+          'Postre': 'bg-fogon-200 text-fogon-700',
+        }[receta.categoria] || 'bg-lino-border text-carbon-600';
+
+        // Insertar un anuncio inline cada 4 recetas (no al final)
+        if (index > 0 && index % 4 === 0 && index < recetas.length) {
+          html += `<div class="col-span-full">${Ads.renderInline('16:9', 'explore-inline-' + index)}</div>`;
+        }
+
+        html += `
+          <div class="bg-white border border-lino-border rounded-2xl overflow-hidden card-hover ${esExcluida ? 'opacity-50' : ''}">
+            <!-- Cabecera de tarjeta con icono de categoría -->
+            <div class="relative h-32 bg-gradient-to-br from-albahaca-50 to-lino flex items-center justify-center">
+              <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center">
+                <i data-lucide="${this.iconoCategoria(receta.categoria)}" class="w-6 h-6 text-albahaca"></i>
+              </div>
+              <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md ${categoriaColor} text-[10px] font-bold">${receta.categoria}</span>
+              <button onclick="App.toggleFavorito('${receta.id}')" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center hover:bg-white transition">
+                <i data-lucide="heart" class="w-4 h-4 ${esFav ? 'text-fogon heart-filled' : 'text-carbon-400'}"></i>
+              </button>
+            </div>
+            <!-- Cuerpo de tarjeta -->
+            <div class="p-4">
+              <h3 class="font-bold text-carbon text-sm leading-tight mb-1">${receta.nombre}</h3>
+              <div class="flex items-center gap-2 text-[10px] text-carbon-500 mb-2">
+                <span class="flex items-center gap-0.5"><i data-lucide="clock" class="w-3 h-3"></i>${receta.tiempoMinutos} min</span>
+                <span class="flex items-center gap-0.5"><i data-lucide="flame" class="w-3 h-3"></i>${receta.calorias} kcal</span>
+                <span class="flex items-center gap-0.5"><i data-lucide="users" class="w-3 h-3"></i>${receta.porciones} pers.</span>
+              </div>
+              <div class="flex flex-wrap gap-1 mb-3">
+                ${receta.etiquetas.slice(0, 2).map(e => `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-lino text-carbon-600">${e}</span>`).join('')}
+              </div>
+              <div class="flex gap-2">
+                <button onclick="App.abrirDetalle('${receta.id}')" class="flex-1 py-2 rounded-lg bg-carbon text-white text-xs font-bold hover:bg-carbon-700 transition flex items-center justify-center gap-1">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>Ver
+                </button>
+                <button onclick="App.iniciarCocina('${receta.id}')" class="flex-1 py-2 rounded-lg bg-albahaca text-white text-xs font-bold hover:bg-albahaca-800 transition flex items-center justify-center gap-1">
+                  <i data-lucide="chef-hat" class="w-3.5 h-3.5"></i>Cocinar
+                </button>
+                <button onclick="App.toggleExcluido('${receta.id}')" class="w-8 py-2 rounded-lg border border-lino-border text-carbon hover:border-fogon hover:text-fogon transition flex items-center justify-center" title="${esExcluida ? 'Incluir' : 'Excluir'}">
+                  <i data-lucide="${esExcluida ? 'rotate-ccw' : 'ban'}" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      grid.innerHTML = html;
+      UI.refreshIcons();
+    },
+
+    // Renderiza la lista de compras agrupada
+    shoppingList() {
+      const container = document.getElementById('shopping-list');
+      const empty = document.getElementById('shopping-empty');
+      const items = Object.entries(State.shoppingList);
+
+      if (items.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        document.getElementById('shopping-progress-text').textContent = '0 / 0';
+        document.getElementById('shopping-progress-bar').style.width = '0%';
+        UI.refreshIcons();
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const checked = items.filter(([_, v]) => v.checked).length;
+      const total = items.length;
+      document.getElementById('shopping-progress-text').textContent = `${checked} / ${total}`;
+      document.getElementById('shopping-progress-bar').style.width = `${(checked / total) * 100}%`;
+
+      // Agrupar por primera letra para secciones alfabéticas
+      const grupos = {};
+      items.forEach(([key, val]) => {
+        const letra = val.item.charAt(0).toUpperCase();
+        if (!grupos[letra]) grupos[letra] = [];
+        grupos[letra].push({ key, val });
+      });
+
+      const letrasOrdenadas = Object.keys(grupos).sort();
+      let html = '';
+      letrasOrdenadas.forEach((letra, index) => {
+        html += `
+          <div class="bg-white border border-lino-border rounded-2xl p-4">
+            <h4 class="text-xs font-extrabold text-carbon-400 mb-3 uppercase tracking-wider">${letra}</h4>
+            <div class="space-y-2">`;
+        grupos[letra].forEach(({ key, val }) => {
+          html += `
+              <label class="flex items-start gap-3 cursor-pointer group">
+                <input type="checkbox" class="custom-checkbox mt-0.5" ${val.checked ? 'checked' : ''} onchange="ShoppingList.toggle('${key.replace(/'/g, "\\'")}')">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-carbon ${val.checked ? 'completed-text' : ''}">${val.item}</p>
+                  <p class="text-xs text-carbon-500 ${val.checked ? 'completed-text' : ''}">${val.cantidad}</p>
+                </div>
+              </label>`;
+        });
+        html += `</div></div>`;
+        // Insertar un anuncio inline entre secciones de letras (no después de la última)
+        if (index < letrasOrdenadas.length - 1 && (index + 1) % 2 === 0) {
+          html += `<div class="col-span-full">${Ads.renderInline('16:9', 'shopping-inline-' + index)}</div>`;
+        }
+      });
+
+      container.innerHTML = html;
+      UI.refreshIcons();
+    },
+
+    // Renderiza la vista de modo cocina para una receta
+    cocina(recipeId) {
+      const receta = UI.getRecipe(recipeId);
+      if (!receta) return;
+
+      // Inicializar porciones y estado de checkboxes
+      State.originalServings = receta.porciones;
+      State.cookingServings = receta.porciones;
+      State.checkedIngredients = {};
+      State.checkedSteps = {};
+
+      document.getElementById('cooking-title').textContent = receta.nombre;
+      document.getElementById('cooking-category').textContent = receta.categoria;
+      document.querySelector('#cooking-time span').textContent = `${receta.tiempoMinutos} min`;
+      document.querySelector('#cooking-calories span').textContent = `${receta.calorias} kcal`;
+      document.getElementById('cooking-servings-display').textContent = State.cookingServings;
+      document.getElementById('cooking-servings-original').textContent = `Original: ${State.originalServings}`;
+
+      this.renderCookingIngredients(receta);
+      this.renderCookingSteps(receta);
+
+      // Recomendación de Kuzz dentro de la receta (todas las recetas)
+      const kuzzRec = document.getElementById('kuzz-recommendation');
+      if (kuzzRec) {
+        // Si es leches asadas, mostrar recomendación de Musomía en lugar de Kuzz
+        if (receta.recomendacionMusomia) {
+          kuzzRec.innerHTML = Ads.renderMusomiaRecommendation();
+        } else {
+          kuzzRec.innerHTML = Ads.renderKuzzRecommendation();
+        }
+      }
+
+      UI.refreshIcons();
+    },
+
+    // Renderiza los ingredientes del modo cocina con cantidades escaladas
+    renderCookingIngredients(receta) {
+      const ingContainer = document.getElementById('cooking-ingredients');
+      ingContainer.innerHTML = receta.ingredientes.map((ing, i) => {
+        const scaledQty = UI.scaleQuantity(ing.cantidad, State.originalServings, State.cookingServings);
+        const isChecked = State.checkedIngredients[i];
+        return `
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" class="custom-checkbox mt-0.5" ${isChecked ? 'checked' : ''} onchange="App.toggleCookingItem(this, ${i})">
+            <div class="flex-1">
+              <p class="text-base font-semibold text-carbon cooking-item-text ${isChecked ? 'completed-text' : ''}">${ing.item}</p>
+              <p class="text-sm text-carbon-500 cooking-item-qty ${isChecked ? 'completed-text' : ''}">${scaledQty}</p>
+            </div>
+          </label>
+        `;
+      }).join('');
+      // Actualizar display de porciones
+      document.getElementById('cooking-servings-display').textContent = State.cookingServings;
+    },
+
+    // Renderiza los pasos del modo cocina
+    renderCookingSteps(receta) {
+      const pasosContainer = document.getElementById('cooking-steps');
+      pasosContainer.innerHTML = receta.pasos.map((paso, i) => {
+        const isChecked = State.checkedSteps[i];
+        return `
+        <div class="flex gap-4">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-9 h-9 rounded-full ${isChecked ? 'bg-fogon' : 'bg-albahaca'} text-white flex items-center justify-center font-extrabold text-sm cooking-step-num">${i + 1}</div>
+            ${i < receta.pasos.length - 1 ? '<div class="w-0.5 flex-1 bg-lino-border my-1 cooking-step-line"></div>' : ''}
+          </div>
+          <div class="flex-1 pb-2">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" class="custom-checkbox mt-1" ${isChecked ? 'checked' : ''} onchange="App.toggleCookingStep(this, ${i})">
+              <p class="text-base text-carbon leading-relaxed cooking-step-text ${isChecked ? 'completed-text' : ''}">${paso}</p>
+            </label>
+          </div>
+        </div>
+        `;
+      }).join('');
+    },
+
+    // Devuelve el icono Lucide apropiado para cada categoría
+    iconoCategoria(cat) {
+      const iconos = {
+        'Almuerzo': 'sun',
+        'Cena': 'moon',
+        'Desayuno': 'sunrise',
+        'Ligero': 'salad',
+        'Criollo': 'utensils',
+        'Rápido': 'zap',
+        'Postre': 'ice-cream-cone',
+      };
+      return iconos[cat] || 'utensils';
+    },
+  };
+
+  // ===============================================================
+  // 11. APP — Controlador principal de la aplicación
+  // ===============================================================
+  const App = {
+    async init() {
+      // Cargar datos persistidos
+      await Store.cargarTodo();
+
+      // Inicializar módulos
+      Pomodoro.init();
+      NoiseGen.init();
+
+      // Eventos de navegación
+      document.querySelectorAll('[data-nav]').forEach(btn => {
+        btn.addEventListener('click', () => this.navigate(btn.dataset.nav));
+      });
+
+      // Selector de tipos de comida (desayuno, almuerzo, cena, postre)
+      document.querySelectorAll('.meal-type-toggle').forEach(label => {
+        label.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.toggleMealType(label.dataset.meal);
+        });
+      });
+
+      // Botones principales
+      document.getElementById('btn-generate-week').addEventListener('click', () => MenuGen.generar());
+      document.getElementById('btn-go-shopping').addEventListener('click', () => this.navigate('shopping'));
+      document.getElementById('btn-clear-shopping').addEventListener('click', () => ShoppingList.reiniciar());
+      document.getElementById('btn-exit-cooking').addEventListener('click', () => this.navigate('explore'));
+      document.getElementById('btn-complete-cooking').addEventListener('click', () => {
+        UI.toast('Receta marcada como completada. Buen provecho.', 'success');
+        this.navigate('explore');
+      });
+
+      // Botones de compartir app y agregar al inicio (PWA)
+      document.getElementById('btn-share-app').addEventListener('click', () => this.compartirApp());
+      document.getElementById('btn-install-app').addEventListener('click', () => this.agregarAlInicio());
+
+      // Editor de porciones en modo cocina
+      document.getElementById('servings-decrease').addEventListener('click', () => this.cambiarPorciones(-1));
+      document.getElementById('servings-increase').addEventListener('click', () => this.cambiarPorciones(1));
+
+      // Capturar evento beforeinstallprompt para PWA (Agregar al inicio)
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        State.deferredPrompt = e;
+      });
+      // Si ya está instalada, mostrar mensaje al intentar instalar de nuevo
+      window.addEventListener('appinstalled', () => {
+        State.deferredPrompt = null;
+        UI.toast('gastrik se ha instalado correctamente.', 'success');
+      });
+
+      // Panel flotante
+      document.getElementById('floating-toggle').addEventListener('click', () => this.toggleFloating(true));
+      document.getElementById('floating-close').addEventListener('click', () => this.toggleFloating(false));
+      document.getElementById('floating-overlay').addEventListener('click', () => this.toggleFloating(false));
+
+      // Filtros de explorar recetas
+      document.getElementById('recipe-search').addEventListener('input', () => this.actualizarExplorar());
+      document.getElementById('filter-category').addEventListener('change', () => this.actualizarExplorar());
+      document.getElementById('filter-tag').addEventListener('change', () => this.actualizarExplorar());
+      document.getElementById('toggle-favorites').addEventListener('click', (e) => this.toggleSoloFavoritos(e));
+      document.getElementById('toggle-excluded').addEventListener('click', (e) => this.toggleVerExcluidos(e));
+      document.getElementById('clear-filters').addEventListener('click', () => this.limpiarFiltros());
+
+      // Modales
+      document.getElementById('recipe-modal-backdrop').addEventListener('click', () => this.cerrarModal('recipe-modal'));
+      document.getElementById('search-modal-backdrop').addEventListener('click', () => this.cerrarModal('search-modal'));
+      document.getElementById('search-modal-close').addEventListener('click', () => this.cerrarModal('search-modal'));
+      document.getElementById('search-modal-input').addEventListener('input', () => this.renderBuscadorPlato());
+
+      // Llenar selector de etiquetas
+      const todasEtiquetas = [...new Set(RECETAS.flatMap(r => r.etiquetas))].sort();
+      const tagSelect = document.getElementById('filter-tag');
+      todasEtiquetas.forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.textContent = tag;
+        tagSelect.appendChild(opt);
+      });
+
+      // Render inicial
+      Render.menuSemanal();
+      Render.recetas();
+      this.navigate('menu');
+    },
+
+    // Estado de filtros de exploración
+    soloFavoritos: false,
+    verExcluidos: false,
+
+    // Toggle de tipos de comida (desayuno, almuerzo, cena, postre)
+    toggleMealType(meal) {
+      const idx = State.mealTypes.indexOf(meal);
+      if (idx > -1) {
+        // No permitir quitar si es el único tipo seleccionado
+        if (State.mealTypes.length <= 1) {
+          UI.toast('Debe seleccionar al menos un tipo de comida.', 'warning');
+          return;
+        }
+        State.mealTypes.splice(idx, 1);
+      } else {
+        State.mealTypes.push(meal);
+      }
+      this.actualizarMealTypeToggles();
+      // Re-renderizar el menú con los nuevos tipos
+      if (State.menuSemanal) {
+        Render.menuSemanal();
+        ShoppingList.generarDesdeMenu();
+      }
+    },
+
+    // Actualiza el aspecto visual de los toggles de tipos de comida
+    actualizarMealTypeToggles() {
+      document.querySelectorAll('.meal-type-toggle').forEach(label => {
+        const meal = label.dataset.meal;
+        const checkbox = label.querySelector('.meal-type-checkbox');
+        const dot = label.querySelector('.meal-type-dot');
+        const isActive = State.mealTypes.includes(meal);
+
+        checkbox.checked = isActive;
+        if (isActive) {
+          label.className = 'meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-albahaca bg-albahaca-50 cursor-pointer transition';
+          label.querySelector('span:not(.meal-type-dot)').className = 'text-sm font-semibold text-albahaca';
+          dot.className = 'meal-type-dot w-4 h-4 rounded-full border-2 border-albahaca bg-albahaca flex items-center justify-center transition';
+          dot.innerHTML = '<i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>';
+        } else {
+          label.className = 'meal-type-toggle flex items-center gap-2 px-3 py-2 rounded-xl border border-lino-border cursor-pointer hover:border-albahaca transition';
+          label.querySelector('span:not(.meal-type-dot)').className = 'text-sm font-semibold';
+          dot.className = 'meal-type-dot w-4 h-4 rounded-full border-2 border-lino-border flex items-center justify-center transition';
+          dot.innerHTML = '';
+        }
+      });
+      UI.refreshIcons();
+    },
+
+    // Navegación entre vistas (sin recarga)
+    navigate(vista) {
+      State.vistaActual = vista;
+      // Ocultar todas las vistas
+      ['menu', 'explore', 'shopping', 'cooking'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.add('hidden-view');
+      });
+      // Mostrar la vista seleccionada
+      const target = document.getElementById(`view-${vista}`);
+      if (target) {
+        target.classList.remove('hidden-view');
+        // Re-trigger animation
+        target.style.animation = 'none';
+        target.offsetHeight; // force reflow
+        target.style.animation = '';
+      }
+
+      // Actualizar estado de botones de navegación
+      document.querySelectorAll('[data-nav]').forEach(btn => {
+        const isActive = btn.dataset.nav === vista;
+        btn.classList.toggle('text-albahaca', isActive);
+        btn.classList.toggle('font-bold', isActive);
+        if (btn.classList.contains('nav-btn')) {
+          btn.classList.toggle('bg-albahaca-50', isActive);
+        }
+      });
+
+      // Renderizar contenido según la vista
+      if (vista === 'menu') Render.menuSemanal();
+      if (vista === 'explore') Render.recetas();
+      if (vista === 'shopping') Render.shoppingList();
+
+      // Renderizar anuncios de la vista actual
+      // Las publicidades solo cambian cuando se cambia de tab/pantalla
+      Ads.renderForView(vista);
+
+      // Scroll al inicio
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    // Compartir la app — usa Web Share API o fallback a WhatsApp
+    async compartirApp() {
+      const shareData = {
+        title: 'gastrik',
+        text: 'Te recomiendo gastrik, una app para planificar tu menú semanal y cocinar paso a paso',
+        url: window.location.href,
+      };
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+        } catch (e) {
+          // El usuario canceló, no hacer nada
+        }
+      } else {
+        // Fallback: abrir WhatsApp para seleccionar contactos
+        const msg = encodeURIComponent(`${shareData.text} ${shareData.url}`);
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+      }
+    },
+
+    // Agregar al inicio (PWA install prompt)
+    async agregarAlInicio() {
+      if (State.deferredPrompt) {
+        State.deferredPrompt.prompt();
+        const { outcome } = await State.deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          UI.toast('gastrik se ha agregado a tu pantalla de inicio.', 'success');
+        }
+        State.deferredPrompt = null;
+      } else {
+        // Instrucciones para navegadores que no soportan install prompt
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
+          UI.toast('Toca el boton Compartir y selecciona "Agregar a pantalla de inicio".', 'info');
+        } else {
+          UI.toast('En el menu del navegador, selecciona "Instalar app" o "Agregar a pantalla de inicio".', 'info');
+        }
+      }
+    },
+
+    // Cambiar el numero de porciones en modo cocina (ingredientes se ajustan)
+    cambiarPorciones(delta) {
+      const nueva = State.cookingServings + delta;
+      if (nueva < 1) return; // Mínimo 1 porción
+      if (nueva > 50) return; // Máximo razonable
+      State.cookingServings = nueva;
+      const receta = UI.getRecipe(State.currentRecipeId);
+      if (receta) {
+        Render.renderCookingIngredients(receta);
+      }
+      UI.refreshIcons();
+    },
+
+    // Panel flotante (Pomodoro + Ruido)
+    toggleFloating(abrir) {
+      const panel = document.getElementById('floating-panel');
+      const overlay = document.getElementById('floating-overlay');
+      if (abrir) {
+        panel.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        panel.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    },
+
+    // Actualizar exploración de recetas con filtros
+    actualizarExplorar() {
+      const filtro = document.getElementById('recipe-search').value;
+      const categoria = document.getElementById('filter-category').value;
+      const etiqueta = document.getElementById('filter-tag').value;
+      Render.recetas(filtro, categoria, etiqueta, this.soloFavoritos, this.verExcluidos);
+    },
+
+    toggleSoloFavoritos(e) {
+      this.soloFavoritos = !this.soloFavoritos;
+      const btn = e.currentTarget;
+      if (this.soloFavoritos) {
+        btn.classList.add('bg-fogon', 'text-white', 'border-fogon');
+        btn.classList.remove('border-lino-border');
+      } else {
+        btn.classList.remove('bg-fogon', 'text-white', 'border-fogon');
+        btn.classList.add('border-lino-border');
+      }
+      this.actualizarExplorar();
+    },
+
+    toggleVerExcluidos(e) {
+      this.verExcluidos = !this.verExcluidos;
+      const btn = e.currentTarget;
+      if (this.verExcluidos) {
+        btn.classList.add('bg-carbon', 'text-white', 'border-carbon');
+        btn.classList.remove('border-lino-border');
+      } else {
+        btn.classList.remove('bg-carbon', 'text-white', 'border-carbon');
+        btn.classList.add('border-lino-border');
+      }
+      this.actualizarExplorar();
+    },
+
+    limpiarFiltros() {
+      document.getElementById('recipe-search').value = '';
+      document.getElementById('filter-category').value = '';
+      document.getElementById('filter-tag').value = '';
+      this.soloFavoritos = false;
+      this.verExcluidos = false;
+      const favBtn = document.getElementById('toggle-favorites');
+      favBtn.classList.remove('bg-fogon', 'text-white', 'border-fogon');
+      favBtn.classList.add('border-lino-border');
+      const excBtn = document.getElementById('toggle-excluded');
+      excBtn.classList.remove('bg-carbon', 'text-white', 'border-carbon');
+      excBtn.classList.add('border-lino-border');
+      this.actualizarExplorar();
+    },
+
+    // Favoritos y exclusiones
+    toggleFavorito(recipeId) {
+      const idx = State.favoritos.indexOf(recipeId);
+      if (idx > -1) {
+        State.favoritos.splice(idx, 1);
+        UI.toast('Receta quitada de favoritas.', 'info');
+      } else {
+        State.favoritos.push(recipeId);
+        UI.toast('Receta añadida a favoritas.', 'success');
+      }
+      Store.guardarFavoritos();
+      this.actualizarExplorar();
+    },
+
+    toggleExcluido(recipeId) {
+      const idx = State.excluidos.indexOf(recipeId);
+      if (idx > -1) {
+        State.excluidos.splice(idx, 1);
+        UI.toast('Receta incluida nuevamente.', 'info');
+      } else {
+        State.excluidos.push(recipeId);
+        UI.toast('Receta excluida. No aparecerá al generar menús.', 'warning');
+      }
+      Store.guardarExcluidos();
+      this.actualizarExplorar();
+    },
+
+    // Modal de detalle de receta
+    abrirDetalle(recipeId) {
+      const receta = UI.getRecipe(recipeId);
+      if (!receta) return;
+      const esFav = State.favoritos.includes(recipeId);
+      const content = document.getElementById('recipe-modal-content');
+      content.innerHTML = `
+        <div class="relative h-40 bg-gradient-to-br from-albahaca-100 to-lino flex items-center justify-center">
+          <div class="w-16 h-16 rounded-2xl bg-white shadow-md flex items-center justify-center">
+            <i data-lucide="${Render.iconoCategoria(receta.categoria)}" class="w-8 h-8 text-albahaca"></i>
+          </div>
+          <button onclick="App.cerrarModal('recipe-modal')" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center hover:bg-white transition">
+            <i data-lucide="x" class="w-5 h-5 text-carbon"></i>
+          </button>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="px-2.5 py-1 rounded-md bg-albahaca-50 text-albahaca text-xs font-bold">${receta.categoria}</span>
+            ${receta.etiquetas.map(e => `<span class="px-2 py-1 rounded-md bg-lino text-carbon-600 text-xs font-semibold">${e}</span>`).join('')}
+          </div>
+          <h2 class="text-2xl font-extrabold text-carbon mb-3">${receta.nombre}</h2>
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="text-center p-3 rounded-xl bg-lino">
+              <i data-lucide="clock" class="w-5 h-5 text-albahaca mx-auto mb-1"></i>
+              <p class="text-lg font-extrabold text-carbon">${receta.tiempoMinutos}</p>
+              <p class="text-[10px] text-carbon-500 font-medium">Minutos</p>
+            </div>
+            <div class="text-center p-3 rounded-xl bg-lino">
+              <i data-lucide="users" class="w-5 h-5 text-albahaca mx-auto mb-1"></i>
+              <p class="text-lg font-extrabold text-carbon">${receta.porciones}</p>
+              <p class="text-[10px] text-carbon-500 font-medium">Porciones</p>
+            </div>
+            <div class="text-center p-3 rounded-xl bg-lino">
+              <i data-lucide="flame" class="w-5 h-5 text-fogon mx-auto mb-1"></i>
+              <p class="text-lg font-extrabold text-carbon">${receta.calorias}</p>
+              <p class="text-[10px] text-carbon-500 font-medium">Calorías</p>
+            </div>
+          </div>
+          <div class="mb-5">
+            <h3 class="font-bold text-carbon mb-3 flex items-center gap-2">
+              <i data-lucide="list" class="w-4 h-4 text-albahaca"></i>Ingredientes (${receta.ingredientes.length})
+            </h3>
+            <ul class="space-y-2">
+              ${receta.ingredientes.map(ing => `
+                <li class="flex justify-between items-center text-sm border-b border-lino-border pb-2">
+                  <span class="font-medium text-carbon">${ing.item}</span>
+                  <span class="text-carbon-500 font-semibold">${ing.cantidad}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          <div class="mb-5">
+            <h3 class="font-bold text-carbon mb-3 flex items-center gap-2">
+              <i data-lucide="list-ordered" class="w-4 h-4 text-fogon"></i>Preparación (${receta.pasos.length} pasos)
+            </h3>
+            <ol class="space-y-3">
+              ${receta.pasos.map((p, i) => `
+                <li class="flex gap-3">
+                  <span class="w-6 h-6 rounded-full bg-fogon text-white text-xs font-bold flex items-center justify-center flex-shrink-0">${i + 1}</span>
+                  <span class="text-sm text-carbon leading-relaxed pt-0.5">${p}</span>
+                </li>
+              `).join('')}
+            </ol>
+          </div>
+          <!-- Recomendación de Kuzz o Musomía dentro del modal (tarjeta inline única) -->
+          <div class="mb-5" id="modal-kuzz-rec"><!-- Renderizado por JS --></div>
+          <div class="flex gap-2">
+            <button onclick="App.toggleFavorito('${receta.id}'); App.abrirDetalle('${receta.id}')" class="flex-1 py-2.5 rounded-xl border border-lino-border font-semibold text-sm hover:border-fogon hover:text-fogon transition flex items-center justify-center gap-2">
+              <i data-lucide="heart" class="w-4 h-4 ${esFav ? 'text-fogon heart-filled' : 'text-carbon-400'}"></i>${esFav ? 'Quitar de favoritas' : 'Añadir a favoritas'}
+            </button>
+            <button onclick="App.iniciarCocina('${receta.id}')" class="flex-1 py-2.5 rounded-xl bg-albahaca text-white font-bold text-sm hover:bg-albahaca-800 transition flex items-center justify-center gap-2">
+              <i data-lucide="chef-hat" class="w-4 h-4"></i>Cocinar ahora
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('recipe-modal').classList.remove('hidden');
+      UI.refreshIcons();
+      // Renderizar recomendación de Kuzz o Musomía dentro del modal
+      const modalRec = document.getElementById('modal-kuzz-rec');
+      if (modalRec) {
+        if (receta.recomendacionMusomia) {
+          modalRec.innerHTML = Ads.renderMusomiaRecommendation();
+        } else {
+          modalRec.innerHTML = Ads.renderKuzzRecommendation();
+        }
+      }
+      UI.refreshIcons();
+    },
+
+    // Modal buscador de platos (para cambiar un plato del menú)
+    abrirBuscadorPlato(dia, tipo) {
+      State.currentCookingSlot = { dia, tipo };
+      document.getElementById('search-modal-input').value = '';
+      this.renderBuscadorPlato();
+      document.getElementById('search-modal').classList.remove('hidden');
+      UI.refreshIcons();
+    },
+
+    renderBuscadorPlato() {
+      const query = document.getElementById('search-modal-input').value.toLowerCase();
+      const container = document.getElementById('search-modal-results');
+      let recetas = RECETAS.filter(r => !State.excluidos.includes(r.id));
+      if (query) {
+        recetas = recetas.filter(r => r.nombre.toLowerCase().includes(query));
+      }
+      if (recetas.length === 0) {
+        container.innerHTML = `<p class="text-center text-carbon-500 text-sm py-6">No se encontraron recetas.</p>`;
+        return;
+      }
+      const { dia, tipo } = State.currentCookingSlot;
+      container.innerHTML = recetas.map(r => `
+        <button onclick="App.seleccionarPlatoMenu('${r.id}')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-lino-border hover:border-albahaca hover:bg-albahaca-50 transition text-left">
+          <div class="w-10 h-10 rounded-lg bg-albahaca-50 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="${Render.iconoCategoria(r.categoria)}" class="w-5 h-5 text-albahaca"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-carbon text-sm truncate">${r.nombre}</p>
+            <p class="text-xs text-carbon-500">${r.categoria} · ${r.tiempoMinutos} min · ${r.calorias} kcal</p>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-carbon-400 flex-shrink-0"></i>
+        </button>
+      `).join('');
+      UI.refreshIcons();
+    },
+
+    seleccionarPlatoMenu(recipeId) {
+      if (State.currentCookingSlot) {
+        const { dia, tipo } = State.currentCookingSlot;
+        MenuGen.asignarPlato(dia, tipo, recipeId);
+      }
+      this.cerrarModal('search-modal');
+    },
+
+    // Modo cocina
+    iniciarCocina(recipeId) {
+      State.currentRecipeId = recipeId;
+      this.cerrarModal('recipe-modal');
+      Render.cocina(recipeId);
+      this.navigate('cooking');
+    },
+
+    toggleCookingItem(checkbox, idx) {
+      // Guardar el estado del checkbox
+      State.checkedIngredients[idx] = checkbox.checked;
+      const text = checkbox.parentElement.querySelector('.cooking-item-text');
+      const cantidad = checkbox.parentElement.querySelector('.cooking-item-qty');
+      if (checkbox.checked) {
+        text.classList.add('completed-text');
+        if (cantidad) cantidad.classList.add('completed-text');
+      } else {
+        text.classList.remove('completed-text');
+        if (cantidad) cantidad.classList.remove('completed-text');
+      }
+    },
+
+    toggleCookingStep(checkbox, idx) {
+      // Guardar el estado del checkbox
+      State.checkedSteps[idx] = checkbox.checked;
+      const text = checkbox.parentElement.querySelector('.cooking-step-text');
+      const num = document.querySelectorAll('.cooking-step-num')[idx];
+      if (checkbox.checked) {
+        text.classList.add('completed-text');
+        if (num) {
+          num.classList.remove('bg-albahaca');
+          num.classList.add('bg-fogon');
+        }
+      } else {
+        text.classList.remove('completed-text');
+        if (num) {
+          num.classList.add('bg-albahaca');
+          num.classList.remove('bg-fogon');
+        }
+      }
+    },
+
+    cerrarModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    },
+  };
+
+  // ===============================================================
+  // 12. INICIALIZACIÓN AL CARGAR EL DOM
+  // ===============================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+    lucide.createIcons();
+  });
+
+  // Exponer para uso en onclick inline
+  window.App = App;
+  window.MenuGen = MenuGen;
+  window.ShoppingList = ShoppingList;
+  window.Render = Render;
+  window.UI = UI;
+  window.Ads = Ads;
+  </script>
+</body>
+</html>
